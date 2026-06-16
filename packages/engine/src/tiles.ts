@@ -39,3 +39,26 @@ export function parseTileId(id: string): Tile {
 export function tilesEqual(a: Tile, b: Tile): boolean {
   return tileId(a) === tileId(b);
 }
+
+const SUITS: readonly Suit[] = ['m', 'p', 's'];
+const RANKS: readonly Rank[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+const HONOR_LIST: readonly Honor[] = ['E','S','W','N','R','G','Wh'];
+const FLOWER_LIST: readonly Flower[] = [
+  'F1','F2','F3','F4','S1','S2','S3','S4',
+];
+
+export function buildDeck(): Tile[] {
+  const deck: Tile[] = [];
+  for (const suit of SUITS) {
+    for (const rank of RANKS) {
+      for (let i = 0; i < 4; i++) deck.push({ kind: 'suit', suit, rank });
+    }
+  }
+  for (const honor of HONOR_LIST) {
+    for (let i = 0; i < 4; i++) deck.push({ kind: 'honor', honor });
+  }
+  for (const flower of FLOWER_LIST) {
+    deck.push({ kind: 'flower', flower });
+  }
+  return deck;
+}

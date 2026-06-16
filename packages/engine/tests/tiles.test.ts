@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tileId, parseTileId, type Tile } from '../src/tiles.js';
+import { tileId, parseTileId, buildDeck, type Tile } from '../src/tiles.js';
 
 describe('tileId', () => {
   it('encodes suit tiles as <suit><rank>', () => {
@@ -33,5 +33,32 @@ describe('tileId', () => {
   it('parseTileId rejects garbage', () => {
     expect(() => parseTileId('x9')).toThrow();
     expect(() => parseTileId('m10')).toThrow();
+  });
+});
+
+describe('buildDeck', () => {
+  it('returns 144 tiles total', () => {
+    expect(buildDeck()).toHaveLength(144);
+  });
+
+  it('contains 4 of each suit/honor and 1 of each flower', () => {
+    const deck = buildDeck();
+    const counts = new Map<string, number>();
+    for (const t of deck) {
+      const id = tileId(t);
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    // 27 suit ids + 7 honor ids = 34 ids, each ×4 = 136
+    for (const suit of ['m','p','s'] as const) {
+      for (let r = 1; r <= 9; r++) {
+        expect(counts.get(`${suit}${r}`)).toBe(4);
+      }
+    }
+    for (const h of ['E','S','W','N','R','G','Wh']) {
+      expect(counts.get(h)).toBe(4);
+    }
+    for (const f of ['F1','F2','F3','F4','S1','S2','S3','S4']) {
+      expect(counts.get(f)).toBe(1);
+    }
   });
 });
