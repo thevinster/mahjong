@@ -227,7 +227,7 @@ function drawAndAdvance(state: GameState, nextSeat: Seat): [GameState, Event[]] 
     drawn = repl;
   }
   hand = { ...hand, concealed: [...hand.concealed, drawn] };
-  events.unshift({ t: 'drew', seat: nextSeat, tileForSeat: drawn });
+  events.push({ t: 'drew', seat: nextSeat, tileForSeat: drawn });
   const next: GameState = {
     ...state,
     hands: { ...state.hands, [nextSeat]: hand },
