@@ -27,12 +27,17 @@ export async function POST(_req: NextRequest, ctx: { params: { code: string } })
     room.phase = 'playing';
     // Run any leading bot turns synchronously (host is always seat 0 / human, so this is usually a no-op)
     const events = runBotTurnsInline(room);
+
+    // Update seq before CAS write so it gets persisted
+    const baseSeq = room.seq;
+    room.seq = baseSeq + events.length;
+
     const ok = await casRoom(room.code, room.version, room);
     if (!ok) continue;
-    // Broadcast events after successful write
-    for (const ev of events) {
-      room.seq += 1;
-      await broadcastEvent(room.code, ev, room.seq);
+
+    // Broadcast events after successful write with sequential seq numbers
+    for (let i = 0; i < events.length; i++) {
+      await broadcastEvent(room.code, events[i]!, baseSeq + i + 1);
     }
     return new NextResponse(null, { status: 204 });
   }
