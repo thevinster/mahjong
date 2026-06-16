@@ -56,3 +56,15 @@ describe('findWinPartitions', () => {
     expect(parts.length).toBe(2);
   });
 });
+
+import fixtures from './win.fixtures.json' assert { type: 'json' };
+
+describe('win.fixtures.json', () => {
+  for (const fx of fixtures as Array<{ name: string; tiles: string; wins: boolean; minPartitions: number }>) {
+    it(fx.name, () => {
+      const h = fx.tiles.split(' ').map(parseTileId);
+      expect(isWinningHand(h)).toBe(fx.wins);
+      expect(findWinPartitions(h).length).toBeGreaterThanOrEqual(fx.minPartitions);
+    });
+  }
+});
