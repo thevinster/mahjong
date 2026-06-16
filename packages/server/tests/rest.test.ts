@@ -105,3 +105,36 @@ describe('REST: POST /api/rooms/:code/start', () => {
     expect(start.statusCode).toBe(403);
   });
 });
+
+describe('REST: GET /api/rooms/:code/snapshot', () => {
+  let app: FastifyInstance | null = null;
+  afterEach(async () => { if (app) await app.close(); app = null; });
+
+  it('returns redacted snapshot for a seated player', async () => {
+    app = await buildApp();
+    const c = await app.inject({ method: 'POST', url: '/api/rooms', headers: { cookie: 'playerId=h' } });
+    const { roomCode } = c.json();
+    await app.inject({ method: 'POST', url: `/api/rooms/${roomCode}/start`, headers: { cookie: 'playerId=h' } });
+
+    const snap = await app.inject({
+      method: 'GET', url: `/api/rooms/${roomCode}/snapshot`,
+      headers: { cookie: 'playerId=h' },
+    });
+    expect(snap.statusCode).toBe(200);
+    const body = snap.json();
+    expect(body.viewer).toBe(0);
+    expect(body.hands).toBeDefined();
+  });
+
+  it('returns 403 for a non-seated player', async () => {
+    app = await buildApp();
+    const c = await app.inject({ method: 'POST', url: '/api/rooms', headers: { cookie: 'playerId=h' } });
+    const { roomCode } = c.json();
+    await app.inject({ method: 'POST', url: `/api/rooms/${roomCode}/start`, headers: { cookie: 'playerId=h' } });
+    const snap = await app.inject({
+      method: 'GET', url: `/api/rooms/${roomCode}/snapshot`,
+      headers: { cookie: 'playerId=interloper' },
+    });
+    expect(snap.statusCode).toBe(403);
+  });
+});

@@ -2,9 +2,11 @@ import type { FastifyInstance } from 'fastify';
 import { getPlayerId } from './identity.js';
 import { RoomRegistry } from './rooms.js';
 import {
-  initialState, seededRng, heuristicPolicy, type Seat,
+  initialState, seededRng, heuristicPolicy, redactFor, type Seat,
 } from '@mahjong/engine';
 import { randomBytes } from 'node:crypto';
+
+const SEATS: readonly Seat[] = [0, 1, 2, 3];
 
 export function registerRest(app: FastifyInstance, rooms: RoomRegistry) {
   app.post('/api/rooms', async (req) => {
@@ -57,6 +59,22 @@ export function registerRest(app: FastifyInstance, rooms: RoomRegistry) {
         });
       }
       return reply.code(204).send();
+    },
+  );
+
+  app.get<{ Params: { code: string } }>(
+    '/api/rooms/:code/snapshot',
+    async (req, reply) => {
+      const room = rooms.get(req.params.code);
+      if (!room || !room.state) return reply.code(404).send({ error: 'not started' });
+      const playerId = getPlayerId(req);
+      let mySeat: Seat | null = null;
+      for (const seat of SEATS) {
+        const b = room.seats[seat];
+        if (b.kind === 'human' && b.playerId === playerId) { mySeat = seat; break; }
+      }
+      if (mySeat === null) return reply.code(403).send({ error: 'not seated' });
+      return redactFor(room.state, mySeat);
     },
   );
 }
