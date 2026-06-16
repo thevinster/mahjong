@@ -22,15 +22,16 @@ export function makeChow(ts: [Tile, Tile, Tile], claimedFrom?: Seat): Extract<Me
   if (!ts.every((t): t is SuitTile => t.kind === 'suit')) {
     throw new Error(`chow requires suit tiles, got ${ts.map(tileId).join(',')}`);
   }
-  if (ts[0].suit !== ts[1].suit || ts[1].suit !== ts[2].suit) {
+  const sts = ts as ChowTiles;
+  if (sts[0].suit !== sts[1].suit || sts[1].suit !== sts[2].suit) {
     throw new Error(`chow requires single suit, got ${ts.map(tileId).join(',')}`);
   }
-  if (ts[1].rank !== ts[0].rank + 1 || ts[2].rank !== ts[1].rank + 1) {
+  if (sts[1].rank !== sts[0].rank + 1 || sts[2].rank !== sts[1].rank + 1) {
     throw new Error(`chow requires consecutive sorted ranks, got ${ts.map(tileId).join(',')}`);
   }
   return claimedFrom === undefined
-    ? { kind: 'chow', tiles: ts as ChowTiles }
-    : { kind: 'chow', tiles: ts as ChowTiles, claimedFrom };
+    ? { kind: 'chow', tiles: sts }
+    : { kind: 'chow', tiles: sts, claimedFrom };
 }
 
 export function makeKong(
