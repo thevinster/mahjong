@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tileId, parseTileId, buildDeck, type Tile } from '../src/tiles.js';
+import { tileId, parseTileId, buildDeck, sortTiles, type Tile } from '../src/tiles.js';
 
 describe('tileId', () => {
   it('encodes suit tiles as <suit><rank>', () => {
@@ -60,5 +60,33 @@ describe('buildDeck', () => {
     for (const f of ['F1','F2','F3','F4','S1','S2','S3','S4']) {
       expect(counts.get(f)).toBe(1);
     }
+  });
+});
+
+describe('sortTiles', () => {
+  it('totally orders: suits first by m<p<s then by rank; then honors; then flowers', () => {
+    const unsorted: Tile[] = [
+      { kind: 'flower', flower: 'F1' },
+      { kind: 'honor', honor: 'E' },
+      { kind: 'suit', suit: 's', rank: 1 },
+      { kind: 'suit', suit: 'm', rank: 9 },
+      { kind: 'suit', suit: 'p', rank: 5 },
+      { kind: 'honor', honor: 'Wh' },
+      { kind: 'suit', suit: 'm', rank: 1 },
+    ];
+    const sorted = sortTiles(unsorted);
+    expect(sorted.map(tileId)).toEqual([
+      'm1','m9','p5','s1','E','Wh','F1',
+    ]);
+  });
+
+  it('does not mutate input', () => {
+    const input: Tile[] = [
+      { kind: 'suit', suit: 's', rank: 2 },
+      { kind: 'suit', suit: 'm', rank: 5 },
+    ];
+    const before = input.map(tileId);
+    sortTiles(input);
+    expect(input.map(tileId)).toEqual(before);
   });
 });

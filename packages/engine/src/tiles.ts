@@ -62,3 +62,24 @@ export function buildDeck(): Tile[] {
   }
   return deck;
 }
+
+const SUIT_ORDER: Record<Suit, number> = { m: 0, p: 1, s: 2 };
+const HONOR_ORDER: Record<Honor, number> = {
+  E: 0, S: 1, W: 2, N: 3, R: 4, G: 5, Wh: 6,
+};
+const FLOWER_ORDER: Record<Flower, number> = {
+  F1: 0, F2: 1, F3: 2, F4: 3, S1: 4, S2: 5, S3: 6, S4: 7,
+};
+
+function tileSortKey(t: Tile): number {
+  // suits 0..26, honors 100..106, flowers 200..207
+  switch (t.kind) {
+    case 'suit':   return SUIT_ORDER[t.suit] * 9 + (t.rank - 1);
+    case 'honor':  return 100 + HONOR_ORDER[t.honor];
+    case 'flower': return 200 + FLOWER_ORDER[t.flower];
+  }
+}
+
+export function sortTiles(tiles: readonly Tile[]): Tile[] {
+  return [...tiles].sort((a, b) => tileSortKey(a) - tileSortKey(b));
+}
