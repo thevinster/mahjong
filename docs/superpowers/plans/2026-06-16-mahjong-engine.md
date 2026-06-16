@@ -19,6 +19,19 @@ fast-check 3+.
 **Scope of this plan:** Engine package only. Plans 2 (server) and 3
 (client) depend on this plan being merged.
 
+**Dev-server environment note:** On the Meta Linux dev server,
+system `node` is v16 and the system `npm` shim blocks direct installs.
+Before any `node` / `npm` / `pnpm` / `npx` command, source the helper:
+
+```bash
+source /home/leevince/mahjong/scripts/dev-env.sh
+```
+
+This prepends Claude Code's bundled Node 24 bin directory to `PATH`. Then
+invoke `pnpm` via `npx --yes pnpm@9.0.0 <args>` since pnpm is not installed
+globally. On macOS this file is unnecessary — `brew install node pnpm`
+gives you the right tools on PATH.
+
 ---
 
 ## File map
