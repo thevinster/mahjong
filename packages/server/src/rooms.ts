@@ -1,5 +1,6 @@
 import type { GameState, BotPolicy, Seat } from '@mahjong/engine';
 import { generateRoomCode } from './codes.js';
+import { PromiseQueue } from './locks.js';
 
 export type PlayerId = string;
 
@@ -24,6 +25,8 @@ export type Room = {
   seq: number;
   /** seat -> latest pending intent during awaitClaims (claim or pass) */
   pendingClaims: Map<Seat, unknown>;
+  /** Serializes all writes to room.state — see locks.ts. */
+  lock: PromiseQueue;
 };
 
 export class RoomRegistry {
@@ -49,6 +52,7 @@ export class RoomRegistry {
       endedAt: null,
       seq: 0,
       pendingClaims: new Map(),
+      lock: new PromiseQueue(),
     };
     this.rooms.set(code, room);
     return room;

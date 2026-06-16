@@ -51,8 +51,10 @@ export function registerRest(app: FastifyInstance, rooms: RoomRegistry) {
       room.phase = 'playing';
       const io = (req.server as unknown as { io?: import('socket.io').Server }).io;
       if (io) {
-        // Don't await — fire and forget so the REST response isn't held
-        void import('./bot-scheduler.js').then(({ maybeRunBotTurns }) => maybeRunBotTurns(io, room));
+        void room.lock.enqueue(async () => {
+          const { maybeRunBotTurns } = await import('./bot-scheduler.js');
+          await maybeRunBotTurns(io, room);
+        });
       }
       return reply.code(204).send();
     },

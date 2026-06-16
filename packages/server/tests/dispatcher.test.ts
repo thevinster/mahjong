@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { initialState, seededRng } from '@mahjong/engine';
 import { applyIntent } from '../src/dispatcher.js';
 import type { Room } from '../src/rooms.js';
+import { PromiseQueue } from '../src/locks.js';
 
 function fakeRoom(): Room {
   return {
@@ -17,6 +18,7 @@ function fakeRoom(): Room {
     graceTimers: { 0: null, 1: null, 2: null, 3: null },
     phase: 'playing', endedAt: null, seq: 0,
     pendingClaims: new Map(),
+    lock: new PromiseQueue(),
   };
 }
 

@@ -34,14 +34,22 @@ export function attachSocketIo(httpServer: HttpServer, rooms: RoomRegistry): IOS
     socket.on('c:intent', async (msg: ClientIntent) => {
       const room = rooms.get(msg.roomCode);
       if (!room) return socket.emit('s:error', { code: 'no_room', message: 'room not found' });
-      const playerId = socket.handshake.auth?.playerId
-        ?? extractPlayerIdFromCookie(socket.handshake.headers.cookie);
-      const seat = findSeat(room, playerId ?? '');
-      if (seat === null) return socket.emit('s:error', { code: 'not_seated', message: 'not seated' });
-      const result = applyIntent(room, seat, msg.intent);
-      if (!result.ok) return socket.emit('s:error', { code: result.code, message: result.message });
-      for (const ev of result.events) broadcastEvent(io, room, ev);
-      await maybeRunBotTurns(io, room);
+      await room.lock.enqueue(async () => {
+        const playerId = socket.handshake.auth?.playerId
+          ?? extractPlayerIdFromCookie(socket.handshake.headers.cookie);
+        const seat = findSeat(room, playerId ?? '');
+        if (seat === null) {
+          socket.emit('s:error', { code: 'not_seated', message: 'not seated' });
+          return;
+        }
+        const result = applyIntent(room, seat, msg.intent);
+        if (!result.ok) {
+          socket.emit('s:error', { code: result.code, message: result.message });
+          return;
+        }
+        for (const ev of result.events) broadcastEvent(io, room, ev);
+        await maybeRunBotTurns(io, room);
+      });
     });
   });
 
