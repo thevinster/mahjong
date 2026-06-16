@@ -18,7 +18,7 @@ beyond the basic 5-melds-and-pair win.
 
 | Decision | Value |
 |----------|-------|
-| Deployment | LAN / pass-the-URL with friends; server runs on host laptop |
+| Deployment | Fly.io free tier (3× shared-cpu-1x VMs, 256MB). Host gets a public `<app>.fly.dev` URL; friends join via URL + room code. Dev runs on macOS/Linux Node; prod runs in Fly's Linux containers. In-memory rooms still acceptable because rooms are single-hand — a redeploy drops active rooms, same as a restart. |
 | Tech stack | Node.js + TypeScript full-stack |
 | Rule scope | Standard Taiwanese: 16-tile hand, pong + chow + kong, flowers, basic taai scoring |
 | Bot AI | Heuristic "competent beginner"; pluggable `BotPolicy` interface for future replacement |
@@ -620,15 +620,30 @@ Both must pass to merge. Target wall-clock: <4 min.
 
 ## 9. Local dev workflow
 
+Assumes a Unix-like shell (macOS or Linux; Windows via WSL).
+
+- One-time on macOS: `brew install node pnpm`.
+- `pnpm install` from the repo root.
 - `pnpm dev` — `tsc -w` for engine, `nodemon` for server, `vite` for
   client, all in parallel via `concurrently`. Client proxies `/socket.io`
   to server.
 - `pnpm test --watch` — engine test loop while writing rules.
 - `pnpm exec playwright test --ui` — interactive E2E.
-- Sharing with friends on same wifi: server binds `0.0.0.0`, friends hit
-  `http://<host-ip>:3000/room/XYZW`.
-- Sharing from anywhere: one-liner `cloudflared tunnel --url
-  http://localhost:3000` or `ngrok http 3000`; share the public URL.
+
+## 9.1 Deployment (Fly.io free tier)
+
+The server builds and deploys as a single Linux container that serves
+both the built client (static files from `packages/client/dist/`) and
+the WebSocket endpoint.
+
+- `fly launch` once to create the app + initial `fly.toml`.
+- `fly deploy` for each push; zero-downtime rolling deploy in ~60s.
+- Free-tier allowance (3× shared-cpu-1x @ 256MB) is more than enough
+  for a single-process Node + Socket.IO game server.
+- A redeploy or VM reboot drops in-memory rooms — accepted because
+  rooms are single-hand and friends can recreate one in seconds.
+- The Fly app gets a free `<app>.fly.dev` URL; that's the URL hosts
+  share with friends along with the 4-character room code.
 
 ## 10. Risks & open questions for the implementation plan
 
