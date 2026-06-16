@@ -126,8 +126,9 @@ function* enumerateMelds(
 
 const SUIT_OFFSET: Record<string, number> = { m: 0, p: 9, s: 18 };
 function keyOrder(id: string): number {
-  if (id.length === 2 && id[0] in SUIT_OFFSET) {
-    return SUIT_OFFSET[id[0]!]! + Number(id[1]) - 1;
+  const first = id[0];
+  if (id.length === 2 && first !== undefined && first in SUIT_OFFSET) {
+    return SUIT_OFFSET[first]! + Number(id[1]) - 1;
   }
   // honors after suits
   return 100 + (['E','S','W','N','R','G','Wh'].indexOf(id));
