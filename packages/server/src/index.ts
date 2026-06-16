@@ -3,6 +3,8 @@ import { PORT, HOST } from './env.js';
 import { registerIdentity } from './identity.js';
 import { registerRest } from './rest.js';
 import { RoomRegistry } from './rooms.js';
+import { attachSocketIo } from './socket.js';
+import type { Server as IOServer } from 'socket.io';
 
 export async function buildApp() {
   const app = Fastify({ logger: false });
@@ -12,6 +14,14 @@ export async function buildApp() {
   (app as unknown as { rooms: RoomRegistry }).rooms = rooms;
   registerRest(app, rooms);
   app.get('/healthz', async () => ({ ok: true }));
+  let io: IOServer | null = null;
+  app.addHook('onReady', async () => {
+    io = attachSocketIo(app.server, rooms);
+    (app as unknown as { io: IOServer }).io = io;
+  });
+  app.addHook('onClose', async () => {
+    if (io) await io.close();
+  });
   return app;
 }
 
