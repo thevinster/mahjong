@@ -1,7 +1,7 @@
 import './kv-mock.js'; // must be first import
 import { describe, it, expect, beforeEach } from 'vitest';
-import { resetKvMock } from './kv-mock.js';
-import { createRoom, getRoom, joinAsHuman } from '../lib/rooms.js';
+import { resetKvMock } from './kv-mock';
+import { createRoom, getRoom, joinAsHuman } from '../lib/rooms';
 
 describe('KV-backed RoomRegistry', () => {
   beforeEach(() => resetKvMock());

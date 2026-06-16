@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getOrIssuePlayerId } from '@/lib/identity.js';
-import { getRoom } from '@/lib/rooms.js';
+import { getOrIssuePlayerId } from '@/lib/identity';
+import { getRoom } from '@/lib/rooms';
 import { redactFor, type Seat } from '@mahjong/engine';
-import type { SnapshotResponse } from '@/lib/protocol.js';
+import type { SnapshotResponse } from '@/lib/protocol';
 
 export const runtime = 'nodejs';
 const SEATS: readonly Seat[] = [0, 1, 2, 3];

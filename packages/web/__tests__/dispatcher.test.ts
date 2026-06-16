@@ -1,8 +1,8 @@
 import './kv-mock.js';
 import { describe, it, expect } from 'vitest';
 import { initialState, seededRng } from '@mahjong/engine';
-import { applyIntent } from '../lib/dispatcher.js';
-import type { Room } from '../lib/rooms.js';
+import { applyIntent } from '../lib/dispatcher';
+import type { Room } from '../lib/rooms';
 
 function fakeRoom(): Room {
   return {

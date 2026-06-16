@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getOrIssuePlayerId } from '@/lib/identity.js';
-import { createRoom } from '@/lib/rooms.js';
-import type { CreateRoomResponse } from '@/lib/protocol.js';
+import { getOrIssuePlayerId } from '@/lib/identity';
+import { createRoom } from '@/lib/rooms';
+import type { CreateRoomResponse } from '@/lib/protocol';
 
 export const runtime = 'nodejs';
 

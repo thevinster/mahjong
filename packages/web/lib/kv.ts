@@ -1,5 +1,5 @@
 import { kv } from '@vercel/kv';
-import type { Room } from './rooms.js'; // declared in Task 4
+import type { Room } from './rooms'; // declared in Task 4
 
 const ROOM_KEY = (code: string) => `room:${code}`;
 

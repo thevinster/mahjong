@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getOrIssuePlayerId } from '@/lib/identity.js';
-import { joinAsHuman, getRoom } from '@/lib/rooms.js';
-import { reconcileGrace } from '@/lib/grace.js';
-import type { JoinRoomRequest, JoinRoomResponse } from '@/lib/protocol.js';
+import { getOrIssuePlayerId } from '@/lib/identity';
+import { joinAsHuman, getRoom } from '@/lib/rooms';
+import { reconcileGrace } from '@/lib/grace';
+import type { JoinRoomRequest, JoinRoomResponse } from '@/lib/protocol';
 
 export const runtime = 'nodejs';
 

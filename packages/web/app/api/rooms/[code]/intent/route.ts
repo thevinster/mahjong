@@ -1,13 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getOrIssuePlayerId } from '@/lib/identity.js';
-import { getRoom } from '@/lib/rooms.js';
-import { casRoom } from '@/lib/kv.js';
-import { applyIntent } from '@/lib/dispatcher.js';
-import { runBotTurnsInline } from '@/lib/bot-scheduler.js';
-import { reconcileGrace } from '@/lib/grace.js';
-import { broadcastEvent } from '@/lib/pusher-server.js';
+import { getOrIssuePlayerId } from '@/lib/identity';
+import { getRoom } from '@/lib/rooms';
+import { casRoom } from '@/lib/kv';
+import { applyIntent } from '@/lib/dispatcher';
+import { runBotTurnsInline } from '@/lib/bot-scheduler';
+import { reconcileGrace } from '@/lib/grace';
+import { broadcastEvent } from '@/lib/pusher-server';
 import type { Seat } from '@mahjong/engine';
-import type { IntentRequest, IntentResponse } from '@/lib/protocol.js';
+import type { IntentRequest, IntentResponse } from '@/lib/protocol';
 
 export const runtime = 'nodejs';
 const SEATS: readonly Seat[] = [0, 1, 2, 3];

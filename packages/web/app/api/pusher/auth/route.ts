@@ -1,9 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getOrIssuePlayerId } from '@/lib/identity.js';
-import { getRoom } from '@/lib/rooms.js';
-import { reconcileGrace, markReconnected } from '@/lib/grace.js';
-import { authenticateChannel } from '@/lib/pusher-server.js';
-import { casRoom } from '@/lib/kv.js';
+import { getOrIssuePlayerId } from '@/lib/identity';
+import { getRoom } from '@/lib/rooms';
+import { reconcileGrace, markReconnected } from '@/lib/grace';
+import { authenticateChannel } from '@/lib/pusher-server';
+import { casRoom } from '@/lib/kv';
 import type { Seat } from '@mahjong/engine';
 
 export const runtime = 'nodejs';

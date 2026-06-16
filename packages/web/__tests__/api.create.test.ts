@@ -1,7 +1,7 @@
 import './kv-mock.js';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { resetKvMock } from './kv-mock.js';
-import { POST } from '../app/api/rooms/route.js';
+import { resetKvMock } from './kv-mock';
+import { POST } from '../app/api/rooms/route';
 import { vi } from 'vitest';
 
 vi.mock('next/headers', () => {

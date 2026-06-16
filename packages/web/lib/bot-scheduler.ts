@@ -1,6 +1,6 @@
 import { buildBotView, seededRng, heuristicPolicy, type Seat, type BotPolicy } from '@mahjong/engine';
-import type { Room } from './rooms.js';
-import { applyIntent } from './dispatcher.js';
+import type { Room } from './rooms';
+import { applyIntent } from './dispatcher';
 
 const SEATS: readonly Seat[] = [0, 1, 2, 3];
 const POLICIES: Record<string, BotPolicy> = {

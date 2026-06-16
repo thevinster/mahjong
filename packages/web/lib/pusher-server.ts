@@ -1,5 +1,5 @@
 import Pusher from 'pusher';
-import { env } from './env.js';
+import { env } from './env';
 import type { Event, Seat } from '@mahjong/engine';
 
 let _pusher: Pusher | null = null;

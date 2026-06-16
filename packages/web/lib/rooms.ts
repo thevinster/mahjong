@@ -1,6 +1,6 @@
 import type { GameState, Seat } from '@mahjong/engine';
-import { generateRoomCode } from './codes.js';
-import { createRoomIfAbsent, readRoom, casRoom } from './kv.js';
+import { generateRoomCode } from './codes';
+import { createRoomIfAbsent, readRoom, casRoom } from './kv';
 
 export type PlayerId = string;
 

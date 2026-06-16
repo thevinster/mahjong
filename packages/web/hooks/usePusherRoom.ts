@@ -1,7 +1,7 @@
 'use client';
 import { useEffect } from 'react';
-import { getPusherClient } from '@/lib/pusher-client.js';
-import { useGame } from './useGame.js';
+import { getPusherClient } from '@/lib/pusher-client';
+import { useGame } from './useGame';
 import type { Seat, Event, RedactedGameState } from '@mahjong/engine';
 
 /**

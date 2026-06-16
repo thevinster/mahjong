@@ -1,4 +1,4 @@
-import type { Room, SeatBinding } from './rooms.js';
+import type { Room, SeatBinding } from './rooms';
 import { heuristicPolicy, type Seat } from '@mahjong/engine';
 
 export const GRACE_MS = 60_000;

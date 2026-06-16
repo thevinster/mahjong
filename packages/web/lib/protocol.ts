@@ -1,5 +1,5 @@
 import type { Event, Intent, RedactedGameState, Seat } from '@mahjong/engine';
-import type { SeatBinding } from './rooms.js';
+import type { SeatBinding } from './rooms';
 
 export type CreateRoomResponse   = { roomCode: string; playerId: string };
 export type JoinRoomRequest      = { displayName: string };

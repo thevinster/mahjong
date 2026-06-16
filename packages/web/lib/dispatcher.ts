@@ -2,7 +2,7 @@ import {
   step, legalIntents, resolveClaimPriority,
   type Intent, type Event, type Seat, type Tile,
 } from '@mahjong/engine';
-import type { Room } from './rooms.js';
+import type { Room } from './rooms';
 
 export type ApplyResult =
   | { ok: true;  events: Event[] }
