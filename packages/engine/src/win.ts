@@ -1,4 +1,4 @@
-import type { Tile, SuitTile, HonorTile } from './tiles.js';
+import type { Tile, SuitTile, HonorTile, Rank } from './tiles.js';
 import { tileId } from './tiles.js';
 
 export type Partition = {
@@ -65,7 +65,11 @@ function countMap(tiles: readonly Tile[]): Map<string, number> {
 function idToTile(id: string): Tile {
   // Inline minimal parser to avoid circular import overhead
   if (id.length === 2 && (id[0] === 'm' || id[0] === 'p' || id[0] === 's')) {
-    return { kind: 'suit', suit: id[0] as SuitTile['suit'], rank: Number(id[1]) as 1 };
+    const rank = Number(id[1]);
+    if (!Number.isInteger(rank) || rank < 1 || rank > 9) {
+      throw new Error(`idToTile: bad rank in ${id}`);
+    }
+    return { kind: 'suit', suit: id[0] as SuitTile['suit'], rank: rank as Rank };
   }
   if (id === 'E' || id === 'S' || id === 'W' || id === 'N'
       || id === 'R' || id === 'G' || id === 'Wh') {
