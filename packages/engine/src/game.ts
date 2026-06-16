@@ -315,9 +315,39 @@ function seatDistance(from: Seat, to: Seat): number {
 }
 
 // Stubs — implemented in later tasks
-function applySelfWin(state: GameState, intent: Extract<Intent, { t: 'declareSelfWin' }>): [GameState, Event[]] {
-  throw new Error('not yet implemented: applySelfWin');
+function applySelfWin(
+  state: GameState,
+  intent: Extract<Intent, { t: 'declareSelfWin' }>,
+): [GameState, Event[]] {
+  if (state.phase.t !== 'awaitDiscard' || state.phase.seat !== intent.seat) {
+    throw new Error('declareSelfWin out of turn');
+  }
+  // Caller already validated win via legalIntents.
+  const score: Record<Seat, number> = { 0: 0, 1: 0, 2: 0, 3: 0 };
+  score[intent.seat] = 3;
+  for (const s of [0, 1, 2, 3] as Seat[]) if (s !== intent.seat) score[s] = -1;
+  return [
+    { ...state, phase: { t: 'ended', winner: intent.seat, score } },
+    [{ t: 'won', seat: intent.seat, from: 'self', score: 3, breakdown: [] }],
+  ];
 }
-function applyConcealedKong(state: GameState, intent: Extract<Intent, { t: 'declareConcealedKong' }>): [GameState, Event[]] {
-  throw new Error('not yet implemented: applyConcealedKong');
+
+function applyConcealedKong(
+  state: GameState,
+  intent: Extract<Intent, { t: 'declareConcealedKong' }>,
+): [GameState, Event[]] {
+  if (state.phase.t !== 'awaitDiscard' || state.phase.seat !== intent.seat) {
+    throw new Error('declareConcealedKong out of turn');
+  }
+  const hand = state.hands[intent.seat];
+  let concealedAfter = [...hand.concealed];
+  for (let i = 0; i < 4; i++) {
+    const idx = concealedAfter.findIndex((c) => tilesEqualLocal(c, intent.tile));
+    if (idx === -1) throw new Error('not enough of tile to concealed-kong');
+    concealedAfter.splice(idx, 1);
+  }
+  const meld: Meld = { kind: 'kong', tile: intent.tile, concealed: true };
+  const newHand = { ...hand, concealed: concealedAfter, exposed: [...hand.exposed, meld] };
+  const newState: GameState = { ...state, hands: { ...state.hands, [intent.seat]: newHand } };
+  return drawReplacementAfterKong(newState, intent.seat, [{ t: 'melded', seat: intent.seat, meld }]);
 }

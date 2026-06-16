@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { initialState, SEATS, step, type GameState, resolveClaimPriority, type Intent, type Seat } from '../src/game.js';
 import { seededRng } from '../src/rng.js';
-import { tileId, type Tile } from '../src/tiles.js';
+import { tileId, parseTileId, type Tile } from '../src/tiles.js';
 
 describe('initialState', () => {
   it('deals 16 tiles to each non-dealer seat (after flower replacement)', () => {
@@ -115,5 +115,47 @@ describe('resolveClaimPriority', () => {
   });
   it('head bump: closest seat to discarder wins among ties', () => {
     expect(resolveClaimPriority([win(2), win(3)], 0)).toEqual(win(2));
+  });
+});
+
+describe('step — declareSelfWin', () => {
+  it('transitions to ended with the declarer as winner', () => {
+    // Build a contrived 17-tile winning hand on dealer
+    const tiles = ['m1','m1','m1','m2','m2','m2','m3','m3','m3','m4','m4','m4','m5','m5','m5','m6','m6']
+      .map((id) => parseTileId(id));
+    const s0 = initialState(seededRng(50));
+    const hacked: GameState = {
+      ...s0,
+      hands: { ...s0.hands, 0: { concealed: tiles, exposed: [], flowers: [] } },
+      phase: { t: 'awaitDiscard', seat: 0 },
+    };
+    const [next, events] = step(hacked, { t: 'declareSelfWin', seat: 0 });
+    expect(next.phase).toEqual(expect.objectContaining({ t: 'ended', winner: 0 }));
+    expect(events.some((e) => e.t === 'won')).toBe(true);
+  });
+});
+
+describe('step — declareConcealedKong', () => {
+  it('moves 4 tiles to exposed concealed-kong and draws replacement', () => {
+    const fourM5: Tile[] = [
+      { kind: 'suit', suit: 'm', rank: 5 },
+      { kind: 'suit', suit: 'm', rank: 5 },
+      { kind: 'suit', suit: 'm', rank: 5 },
+      { kind: 'suit', suit: 'm', rank: 5 },
+    ];
+    const filler: Tile[] = Array.from({ length: 13 }, (_, i) => ({
+      kind: 'suit', suit: 'p', rank: (i % 9 + 1) as 1,
+    }));
+    const s0 = initialState(seededRng(60));
+    const hacked: GameState = {
+      ...s0,
+      hands: { ...s0.hands, 0: { concealed: [...fourM5, ...filler], exposed: [], flowers: [] } },
+      phase: { t: 'awaitDiscard', seat: 0 },
+    };
+    const [next] = step(hacked, { t: 'declareConcealedKong', seat: 0, tile: fourM5[0]! });
+    expect(next.hands[0].exposed.length).toBe(1);
+    expect(next.hands[0].exposed[0]?.kind).toBe('kong');
+    // 17 - 4 + 1 (replacement) = 14
+    expect(next.hands[0].concealed.length).toBe(14);
   });
 });
