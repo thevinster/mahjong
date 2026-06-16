@@ -1,1 +1,1 @@
-{"version":1,"functions":{"/api/rooms/[code]/join":{},"/api/rooms/[code]/snapshot":{},"/api/pusher/auth":{},"/api/rooms":{},"/api/rooms/[code]/intent":{},"/api/rooms/[code]/start":{}}}
+{"version":1,"functions":{"/api/rooms/[code]/join":{},"/api/rooms/[code]/start":{},"/api/pusher/auth":{},"/api/rooms/[code]/intent":{},"/api/rooms":{},"/api/rooms/[code]/snapshot":{}}}
