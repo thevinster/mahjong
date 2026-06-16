@@ -31,7 +31,10 @@ function chooseClaim(view: BotView): Intent {
       // Simulate: after pong, check shanten of remaining concealed minus 2 of the tile
       const remaining = removeN(view.myHand.concealed, c.tiles[1]!, 2);
       if (shanten(remaining) < myShanten) return c;
-      if (myShanten <= 1 && c.tiles[0]!.kind === 'honor') return c;
+      const t = c.tiles[0]!;
+      const isHonor = t.kind === 'honor';
+      const isTerminal = t.kind === 'suit' && (t.rank === 1 || t.rank === 9);
+      if (myShanten <= 1 && (isHonor || isTerminal)) return c;
     } else if (c.kind === 'chow') {
       const remaining = removeChowTiles(view.myHand.concealed, c.tiles);
       if (shanten(remaining) < myShanten) return c;
