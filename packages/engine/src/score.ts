@@ -26,11 +26,12 @@ export function scoreWin(input: ScoreInput): ScoreResult {
     breakdown.push({ name: 'flower', tai: 1 });
     void f;
   }
-  // Honor scoring: any pong/kong of dragons (R/G/Wh), seat wind, or prevailing wind
+  // Honor scoring: any pong of dragons (R/G/Wh), seat wind, or prevailing wind.
+  // bestPartitionMelds returns only pong/chow (no kongs come out of partitioning).
   const allMelds = bestPartitionMelds(input.hand);
   for (const m of allMelds) {
-    if (m.kind !== 'pong' && m.kind !== 'kong') continue;
-    const t = (m.kind === 'pong') ? m.tile : m.tile;
+    if (m.kind !== 'pong') continue;
+    const t = m.tile;
     if (t.kind !== 'honor') continue;
     if (t.honor === 'R' || t.honor === 'G' || t.honor === 'Wh') {
       breakdown.push({ name: `dragon-${t.honor}`, tai: 1 });

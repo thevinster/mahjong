@@ -151,27 +151,30 @@ function applyClaim(
   let meld: Meld;
   let concealedAfter = [...hand.concealed];
   if (intent.kind === 'pong') {
-    meld = makePong(intent.tiles as [import('./tiles.js').Tile, import('./tiles.js').Tile, import('./tiles.js').Tile], fromSeat);
+    const pongMeld = makePong(intent.tiles as [import('./tiles.js').Tile, import('./tiles.js').Tile, import('./tiles.js').Tile], fromSeat);
     // remove 2 matching tiles (one came from discard)
     for (let i = 0; i < 2; i++) {
-      const idx = concealedAfter.findIndex((c) => tilesEqualLocal(c, meld.tile));
+      const idx = concealedAfter.findIndex((c) => tilesEqualLocal(c, pongMeld.tile));
       concealedAfter.splice(idx, 1);
     }
+    meld = pongMeld;
   } else if (intent.kind === 'kong') {
-    meld = makeKong(intent.tiles as [import('./tiles.js').Tile, import('./tiles.js').Tile, import('./tiles.js').Tile, import('./tiles.js').Tile], false, fromSeat);
+    const kongMeld = makeKong(intent.tiles as [import('./tiles.js').Tile, import('./tiles.js').Tile, import('./tiles.js').Tile, import('./tiles.js').Tile], false, fromSeat);
     for (let i = 0; i < 3; i++) {
-      const idx = concealedAfter.findIndex((c) => tilesEqualLocal(c, meld.tile));
+      const idx = concealedAfter.findIndex((c) => tilesEqualLocal(c, kongMeld.tile));
       concealedAfter.splice(idx, 1);
     }
+    meld = kongMeld;
   } else {
     // chow
-    meld = makeChow(intent.tiles as [import('./tiles.js').SuitTile, import('./tiles.js').SuitTile, import('./tiles.js').SuitTile], fromSeat);
+    const chowMeld = makeChow(intent.tiles as [import('./tiles.js').SuitTile, import('./tiles.js').SuitTile, import('./tiles.js').SuitTile], fromSeat);
     // remove the two non-discard tiles
-    for (const t of meld.tiles) {
+    for (const t of chowMeld.tiles) {
       if (tilesEqualLocal(t, state.phase.discard)) continue;
       const idx = concealedAfter.findIndex((c) => tilesEqualLocal(c, t));
       concealedAfter.splice(idx, 1);
     }
+    meld = chowMeld;
   }
   const newHand = {
     ...hand,
