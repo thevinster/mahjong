@@ -49,6 +49,11 @@ export function registerRest(app: FastifyInstance, rooms: RoomRegistry) {
       const seed = randomBytes(4).readUInt32BE(0);
       room.state = initialState(seededRng(seed));
       room.phase = 'playing';
+      const io = (req.server as unknown as { io?: import('socket.io').Server }).io;
+      if (io) {
+        // Don't await — fire and forget so the REST response isn't held
+        void import('./bot-scheduler.js').then(({ maybeRunBotTurns }) => maybeRunBotTurns(io, room));
+      }
       return reply.code(204).send();
     },
   );

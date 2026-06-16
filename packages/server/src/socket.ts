@@ -6,6 +6,7 @@ import type { ClientHello, ClientIntent } from './protocol.js';
 import { gameRoom, playerRoom, sendSnapshot, broadcastEvent } from './redact.js';
 import type { Seat } from '@mahjong/engine';
 import { applyIntent } from './dispatcher.js';
+import { maybeRunBotTurns } from './bot-scheduler.js';
 
 const SEATS: readonly Seat[] = [0, 1, 2, 3];
 
@@ -30,7 +31,7 @@ export function attachSocketIo(httpServer: HttpServer, rooms: RoomRegistry): IOS
       sendSnapshot(io, room, msg.playerId, seat);
     });
 
-    socket.on('c:intent', (msg: ClientIntent) => {
+    socket.on('c:intent', async (msg: ClientIntent) => {
       const room = rooms.get(msg.roomCode);
       if (!room) return socket.emit('s:error', { code: 'no_room', message: 'room not found' });
       const playerId = socket.handshake.auth?.playerId
@@ -40,6 +41,7 @@ export function attachSocketIo(httpServer: HttpServer, rooms: RoomRegistry): IOS
       const result = applyIntent(room, seat, msg.intent);
       if (!result.ok) return socket.emit('s:error', { code: result.code, message: result.message });
       for (const ev of result.events) broadcastEvent(io, room, ev);
+      await maybeRunBotTurns(io, room);
     });
   });
 
