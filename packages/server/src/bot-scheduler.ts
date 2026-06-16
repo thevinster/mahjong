@@ -21,20 +21,28 @@ export function nextActor(room: Room): Seat | null {
 /** Sleep helper (no-op when in fakeTimers; real ms otherwise). */
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+const BOT_DELAY_MS = Number(process.env.BOT_DELAY_MS ?? 400);
+
 /**
  * If the next actor is a bot, fetch its intent and apply. Loop while bots
  * continue to own consecutive decisions. Yields jittered delays (400–900ms)
  * between bot actions so play doesn't feel uncannily instant.
  */
 export async function maybeRunBotTurns(io: IOServer, room: Room): Promise<void> {
+  let iterations = 0;
   while (true) {
+    iterations++;
+    if (iterations > 500) {
+      console.error('[bot-scheduler] Too many iterations, possible infinite loop');
+      return;
+    }
     const seat = nextActor(room);
     if (seat === null) return;
     const b = room.seats[seat];
     if (b.kind !== 'bot') return;
     const policy = room.policies[seat];
     if (!policy) return;
-    await sleep(400 + Math.floor(Math.random() * 500));
+    await sleep(BOT_DELAY_MS + Math.floor(Math.random() * BOT_DELAY_MS));
     const view = buildBotView(room.state!, seat, seededRng(room.seq + seat + 1));
     const intent = policy.decide(view);
     const result = applyIntent(room, seat, intent);
