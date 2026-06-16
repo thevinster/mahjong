@@ -9,6 +9,7 @@ import { ActionLog } from '@/components/ActionLog';
 import { useGame } from '@/hooks/useGame';
 import { usePusherRoom } from '@/hooks/usePusherRoom';
 import { tileLabel } from '@/components/Tile';
+import { viewerLegalIntents } from '@/lib/client-legal';
 import type { Intent, Seat, Tile as TileT } from '@mahjong/engine';
 
 export default function RoomPage() {
@@ -34,20 +35,18 @@ export default function RoomPage() {
 
   usePusherRoom(code, mySeat ?? 0); // subscribes; harmless if mySeat null briefly
 
-  // After every snapshot/event change, refetch legal intents
+  // After every snapshot/event change, compute legal intents client-side
   useEffect(() => {
-    if (!state || mySeat === null) return;
-    // For now, legal intents come from a server call; later we can compute client-side
-    void fetchLegalIntents(code).then(setLegal);
-  }, [state, mySeat, code]);
+    if (!state) { setLegal([]); return; }
+    setLegal(viewerLegalIntents(state));
+  }, [state]);
 
   async function send(intent: Intent) {
     await fetch(`/api/rooms/${code}/intent`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ intent }),
     });
-    // refresh legal
-    setLegal(await fetchLegalIntents(code));
+    // Legal intents are recomputed automatically via the state effect when Pusher updates arrive
   }
 
   async function startRoom() {
@@ -115,13 +114,6 @@ export default function RoomPage() {
       )}
     </main>
   );
-}
-
-async function fetchLegalIntents(code: string): Promise<Intent[]> {
-  // The server doesn't currently expose a legalIntents endpoint; for v1 we
-  // compute them client-side from snapshot. Simpler stub: return [].
-  // (A polish task can add an endpoint or share engine on the client.)
-  return [];
 }
 
 function tileKey(t: TileT): string {
