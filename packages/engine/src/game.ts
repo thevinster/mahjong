@@ -5,6 +5,7 @@ import type { Hand } from './hand.js';
 import { emptyHand, addTile, removeTile } from './hand.js';
 import type { Event, TaiItem } from './events.js';
 import { makePong, makeChow, makeKong, meldTiles, type Meld } from './meld.js';
+import { scoreWin } from './score.js';
 
 export type Seat = 0 | 1 | 2 | 3;
 export const SEATS: readonly Seat[] = [0, 1, 2, 3];
@@ -274,15 +275,21 @@ function resolveWinClaim(
   winningTile: import('./tiles.js').Tile,
   from: Seat,
 ): [GameState, Event[]] {
-  // Scoring + ended state — minimal version, full taai in Task 17
-  const score: Record<Seat, number> = { 0: 0, 1: 0, 2: 0, 3: 0 };
-  score[winner] = 1;
-  score[from] = -1;
-  const ended: GameState = {
-    ...state,
-    phase: { t: 'ended', winner, score },
+  const handAfter = {
+    ...state.hands[winner],
+    concealed: [...state.hands[winner].concealed, winningTile],
   };
-  return [ended, [{ t: 'won', seat: winner, from, score: 1, breakdown: [] }]];
+  const result = scoreWin({
+    hand: handAfter, winningTile, from,
+    seatWind: state.seatWind[winner], prevailingWind: state.prevailingWind,
+  });
+  const score: Record<Seat, number> = { 0: 0, 1: 0, 2: 0, 3: 0 };
+  score[winner] = result.tai;
+  score[from] = -result.tai;
+  return [
+    { ...state, hands: { ...state.hands, [winner]: handAfter }, phase: { t: 'ended', winner, score } },
+    [{ t: 'won', seat: winner, from, score: result.tai, breakdown: result.breakdown }],
+  ];
 }
 
 /**
@@ -322,13 +329,17 @@ function applySelfWin(
   if (state.phase.t !== 'awaitDiscard' || state.phase.seat !== intent.seat) {
     throw new Error('declareSelfWin out of turn');
   }
-  // Caller already validated win via legalIntents.
+  const winningTile = state.hands[intent.seat].concealed[state.hands[intent.seat].concealed.length - 1]!;
+  const result = scoreWin({
+    hand: state.hands[intent.seat], winningTile, from: 'self',
+    seatWind: state.seatWind[intent.seat], prevailingWind: state.prevailingWind,
+  });
   const score: Record<Seat, number> = { 0: 0, 1: 0, 2: 0, 3: 0 };
-  score[intent.seat] = 3;
-  for (const s of [0, 1, 2, 3] as Seat[]) if (s !== intent.seat) score[s] = -1;
+  score[intent.seat] = result.tai * 3;
+  for (const s of [0, 1, 2, 3] as Seat[]) if (s !== intent.seat) score[s] = -result.tai;
   return [
     { ...state, phase: { t: 'ended', winner: intent.seat, score } },
-    [{ t: 'won', seat: intent.seat, from: 'self', score: 3, breakdown: [] }],
+    [{ t: 'won', seat: intent.seat, from: 'self', score: result.tai, breakdown: result.breakdown }],
   ];
 }
 
