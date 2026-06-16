@@ -1,5 +1,5 @@
-import type { Tile } from './tiles.js';
-import { buildDeck, sortTiles } from './tiles.js';
+import type { Tile, FlowerTile } from './tiles.js';
+import { buildDeck } from './tiles.js';
 import { type Rng, shuffle } from './rng.js';
 import type { Hand } from './hand.js';
 import { emptyHand, addTile } from './hand.js';
@@ -43,8 +43,8 @@ export function initialState(rng: Rng): GameState {
 
   const hands: Record<Seat, Hand> = { 0: emptyHand(), 1: emptyHand(), 2: emptyHand(), 3: emptyHand() };
 
-  // Deal 16 tiles to each seat (East first, going E, S, W, N round-robin) — for simplicity,
-  // give each seat 16 tiles in chunks.
+  // Deal 16 tiles to each seat (sequential block per seat — statistically
+  // equivalent to round-robin given the deck is already shuffled).
   for (const seat of SEATS) {
     for (let i = 0; i < 16; i++) {
       const t = wall.shift()!;
@@ -60,10 +60,7 @@ export function initialState(rng: Rng): GameState {
   for (const seat of SEATS) {
     while (hands[seat].concealed.some((t) => t.kind === 'flower')) {
       const flowerIdx = hands[seat].concealed.findIndex((t) => t.kind === 'flower');
-      if (flowerIdx === -1) break;
-      // Move flower to flowers slice
-      const flower = hands[seat].concealed[flowerIdx]!;
-      if (flower.kind !== 'flower') break;
+      const flower = hands[seat].concealed[flowerIdx]! as FlowerTile;
       hands[seat] = {
         ...hands[seat],
         concealed: [
@@ -72,7 +69,6 @@ export function initialState(rng: Rng): GameState {
         ],
         flowers: [...hands[seat].flowers, flower],
       };
-      // Replace from dead wall tail
       const repl = dwIter.pop();
       if (!repl) throw new Error('dead wall exhausted during initial flower replacement');
       hands[seat] = addTile(hands[seat], repl);
