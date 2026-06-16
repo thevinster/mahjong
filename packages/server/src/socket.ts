@@ -7,6 +7,7 @@ import { gameRoom, playerRoom, sendSnapshot, broadcastEvent } from './redact.js'
 import type { Seat } from '@mahjong/engine';
 import { applyIntent } from './dispatcher.js';
 import { maybeRunBotTurns } from './bot-scheduler.js';
+import { onPlayerDisconnect, onPlayerReconnect } from './grace.js';
 
 const SEATS: readonly Seat[] = [0, 1, 2, 3];
 
@@ -28,6 +29,8 @@ export function attachSocketIo(httpServer: HttpServer, rooms: RoomRegistry): IOS
       }
       socket.join(gameRoom(room.code));
       socket.join(playerRoom(msg.playerId));
+      socket.data = { roomCode: room.code, playerId: msg.playerId };
+      onPlayerReconnect(room, msg.playerId);
       sendSnapshot(io, room, msg.playerId, seat);
     });
 
@@ -50,6 +53,15 @@ export function attachSocketIo(httpServer: HttpServer, rooms: RoomRegistry): IOS
         for (const ev of result.events) broadcastEvent(io, room, ev);
         await maybeRunBotTurns(io, room);
       });
+    });
+
+    socket.on('disconnect', () => {
+      // We have to remember which room and which playerId — stash on socket.data on c:hello
+      const data = socket.data as { roomCode?: string; playerId?: string };
+      if (!data.roomCode || !data.playerId) return;
+      const room = rooms.get(data.roomCode);
+      if (!room) return;
+      onPlayerDisconnect(io, room, data.playerId);
     });
   });
 
