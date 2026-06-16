@@ -1,8 +1,10 @@
 import Fastify from 'fastify';
 import { PORT, HOST } from './env.js';
+import { registerIdentity } from './identity.js';
 
 export async function buildApp() {
   const app = Fastify({ logger: false });
+  await registerIdentity(app);
   app.get('/healthz', async () => ({ ok: true }));
   return app;
 }
