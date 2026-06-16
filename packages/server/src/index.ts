@@ -1,10 +1,16 @@
 import Fastify from 'fastify';
 import { PORT, HOST } from './env.js';
 import { registerIdentity } from './identity.js';
+import { registerRest } from './rest.js';
+import { RoomRegistry } from './rooms.js';
 
 export async function buildApp() {
   const app = Fastify({ logger: false });
   await registerIdentity(app);
+  const rooms = new RoomRegistry();
+  // expose registry on the app for downstream tests/handlers
+  (app as unknown as { rooms: RoomRegistry }).rooms = rooms;
+  registerRest(app, rooms);
   app.get('/healthz', async () => ({ ok: true }));
   return app;
 }
