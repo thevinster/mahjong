@@ -2,7 +2,9 @@ import type { Tile, FlowerTile } from './tiles.js';
 import { buildDeck } from './tiles.js';
 import { type Rng, shuffle } from './rng.js';
 import type { Hand } from './hand.js';
-import { emptyHand, addTile } from './hand.js';
+import { emptyHand, addTile, removeTile } from './hand.js';
+import type { Event, TaiItem } from './events.js';
+import { makePong, makeChow, makeKong, meldTiles, type Meld } from './meld.js';
 
 export type Seat = 0 | 1 | 2 | 3;
 export const SEATS: readonly Seat[] = [0, 1, 2, 3];
@@ -86,4 +88,50 @@ export function initialState(rng: Rng): GameState {
     prevailingWind: 'E',
     handNumber: 1,
   };
+}
+
+/**
+ * Pure reducer. Returns next state + emitted events.
+ * Caller is responsible for ensuring the intent is legal (use rules.legalIntents).
+ */
+export function step(state: GameState, intent: Intent): [GameState, Event[]] {
+  switch (intent.t) {
+    case 'discard':              return applyDiscard(state, intent);
+    case 'pass':                 return applyPass(state, intent);
+    case 'claim':                return applyClaim(state, intent);
+    case 'declareSelfWin':       return applySelfWin(state, intent);
+    case 'declareConcealedKong': return applyConcealedKong(state, intent);
+  }
+}
+
+function applyDiscard(
+  state: GameState,
+  intent: Extract<Intent, { t: 'discard' }>,
+): [GameState, Event[]] {
+  const hand = state.hands[intent.seat];
+  const newHand = removeTile(hand, intent.tile);
+  const newHands = { ...state.hands, [intent.seat]: newHand };
+  const others = ([0, 1, 2, 3] as Seat[]).filter((s) => s !== intent.seat);
+  const next: GameState = {
+    ...state,
+    hands: newHands,
+    discards: [...state.discards, { seat: intent.seat, tile: intent.tile }],
+    phase: { t: 'awaitClaims', discard: intent.tile, from: intent.seat, pendingFrom: others },
+  };
+  const ev: Event[] = [{ t: 'discarded', seat: intent.seat, tile: intent.tile }];
+  return [next, ev];
+}
+
+// Stubs — implemented in later tasks
+function applyPass(state: GameState, intent: Extract<Intent, { t: 'pass' }>): [GameState, Event[]] {
+  throw new Error('not yet implemented: applyPass');
+}
+function applyClaim(state: GameState, intent: Extract<Intent, { t: 'claim' }>): [GameState, Event[]] {
+  throw new Error('not yet implemented: applyClaim');
+}
+function applySelfWin(state: GameState, intent: Extract<Intent, { t: 'declareSelfWin' }>): [GameState, Event[]] {
+  throw new Error('not yet implemented: applySelfWin');
+}
+function applyConcealedKong(state: GameState, intent: Extract<Intent, { t: 'declareConcealedKong' }>): [GameState, Event[]] {
+  throw new Error('not yet implemented: applyConcealedKong');
 }
