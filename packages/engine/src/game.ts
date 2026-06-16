@@ -178,9 +178,14 @@ function applyClaim(
     concealed: concealedAfter,
     exposed: [...hand.exposed, meld],
   };
+  // The claimed tile leaves the river — it's now part of the meld.
+  // Remove the last entry from discards (which is always the tile being claimed,
+  // since claims only happen during awaitClaims for the most recent discard).
+  const newDiscards = state.discards.slice(0, -1);
   const newState: GameState = {
     ...state,
     hands: { ...state.hands, [seat]: newHand },
+    discards: newDiscards,
     phase: { t: 'awaitDiscard', seat },
   };
   const events: Event[] = [{ t: 'melded', seat, meld }];
@@ -286,8 +291,14 @@ function resolveWinClaim(
   const score: Record<Seat, number> = { 0: 0, 1: 0, 2: 0, 3: 0 };
   score[winner] = result.tai;
   score[from] = -result.tai;
+  // The winning tile leaves the river — it's now in the winner's hand.
   return [
-    { ...state, hands: { ...state.hands, [winner]: handAfter }, phase: { t: 'ended', winner, score } },
+    {
+      ...state,
+      hands: { ...state.hands, [winner]: handAfter },
+      discards: state.discards.slice(0, -1),
+      phase: { t: 'ended', winner, score },
+    },
     [{ t: 'won', seat: winner, from, score: result.tai, breakdown: result.breakdown }],
   ];
 }
