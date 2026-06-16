@@ -321,6 +321,52 @@ function seatDistance(from: Seat, to: Seat): number {
   return ((to - from + 4) & 3);
 }
 
+export type RedactedHand =
+  | { own: true;  concealed: readonly Tile[]; exposed: readonly Meld[]; flowers: readonly FlowerTile[] }
+  | { own: false; concealedCount: number;     exposed: readonly Meld[]; flowers: readonly FlowerTile[] };
+
+export type RedactedGameState = {
+  readonly hands: Readonly<Record<Seat, RedactedHand>>;
+  readonly wallRemaining: number;
+  readonly deadWallRemaining: number;
+  readonly discards: readonly { seat: Seat; tile: Tile }[];
+  readonly phase: Phase;
+  readonly dealer: Seat;
+  readonly seatWind: Readonly<Record<Seat, 'E'|'S'|'W'|'N'>>;
+  readonly prevailingWind: 'E';
+  readonly handNumber: 1;
+  readonly viewer: Seat;
+};
+
+export function redactFor(state: GameState, viewer: Seat): RedactedGameState {
+  const hands: Record<Seat, RedactedHand> = {
+    0: redactHand(state, 0, viewer),
+    1: redactHand(state, 1, viewer),
+    2: redactHand(state, 2, viewer),
+    3: redactHand(state, 3, viewer),
+  };
+  return {
+    hands,
+    wallRemaining:     state.wall.length,
+    deadWallRemaining: state.deadWall.length,
+    discards:          state.discards,
+    phase:             state.phase,
+    dealer:            state.dealer,
+    seatWind:          state.seatWind,
+    prevailingWind:    state.prevailingWind,
+    handNumber:        state.handNumber,
+    viewer,
+  };
+}
+
+function redactHand(state: GameState, seat: Seat, viewer: Seat): RedactedHand {
+  const h = state.hands[seat];
+  if (seat === viewer) {
+    return { own: true, concealed: h.concealed, exposed: h.exposed, flowers: h.flowers };
+  }
+  return { own: false, concealedCount: h.concealed.length, exposed: h.exposed, flowers: h.flowers };
+}
+
 // Stubs — implemented in later tasks
 function applySelfWin(
   state: GameState,
