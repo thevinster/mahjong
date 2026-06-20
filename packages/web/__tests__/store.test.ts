@@ -1,0 +1,45 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import { useGame } from '../hooks/useGame';
+import type { RoomSnapshot } from '../lib/protocol';
+import type { Event } from '@mahjong/engine';
+
+function snap(seq: number): RoomSnapshot {
+  return { code: 'TEST', phase: 'playing', viewerSeat: 0, isHost: true, seq, seats: [], state: null };
+}
+
+describe('useGame store', () => {
+  beforeEach(() => useGame.getState().reset());
+
+  it('keeps the newest snapshot and ignores stale (lower-seq) ones', () => {
+    const g = () => useGame.getState();
+    g().setSnapshot(snap(5));
+    expect(g().snapshot!.seq).toBe(5);
+    g().setSnapshot(snap(3)); // stale arrival
+    expect(g().snapshot!.seq).toBe(5);
+    g().setSnapshot(snap(7)); // newer
+    expect(g().snapshot!.seq).toBe(7);
+  });
+
+  it('does not let a stale lobby snapshot clobber the live game at equal seq', () => {
+    const g = () => useGame.getState();
+    g().setSnapshot({ ...snap(0), phase: 'playing' });
+    g().setSnapshot({ ...snap(0), phase: 'lobby' }); // stale refetch resolves late
+    expect(g().snapshot!.phase).toBe('playing');
+  });
+
+  it('still transitions lobby → playing at equal seq', () => {
+    const g = () => useGame.getState();
+    g().setSnapshot({ ...snap(0), phase: 'lobby' });
+    g().setSnapshot({ ...snap(0), phase: 'playing' });
+    expect(g().snapshot!.phase).toBe('playing');
+  });
+
+  it('appends events to the log and dedups by seq', () => {
+    const g = () => useGame.getState();
+    const ev = { t: 'discarded', seat: 1, tile: { kind: 'honor', honor: 'E' } } as Event;
+    g().applyEvent(ev, 1);
+    g().applyEvent(ev, 1); // duplicate seq — ignored
+    g().applyEvent(ev, 2);
+    expect(g().log).toHaveLength(2);
+  });
+});

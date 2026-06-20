@@ -1,82 +1,128 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Hand } from '@/components/Hand';
 import { SeatView } from '@/components/Seat';
 import { Discards } from '@/components/Discards';
 import { ActionBar } from '@/components/ActionBar';
 import { ActionLog } from '@/components/ActionLog';
+import { Lobby } from '@/components/Lobby';
 import { useGame } from '@/hooks/useGame';
 import { usePusherRoom } from '@/hooks/usePusherRoom';
-import { tileLabel } from '@/components/Tile';
 import { viewerLegalIntents } from '@/lib/client-legal';
 import type { Intent, Seat, Tile as TileT } from '@mahjong/engine';
+
+const TICK_MS = 8000;
 
 export default function RoomPage() {
   const params = useParams<{ code: string }>();
   const code = params?.code ?? '';
-  const [mySeat, setMySeat] = useState<Seat | null>(null);
+
+  const snapshot = useGame((s) => s.snapshot);
+  const setSnapshot = useGame((s) => s.setSnapshot);
+
+  const viewerSeat = snapshot?.viewerSeat ?? null;
+  const state = snapshot?.state ?? null;
+  const phase = snapshot?.phase ?? null;
+
   const [legal, setLegal] = useState<Intent[]>([]);
   const [starting, setStarting] = useState(false);
-  const state = useGame((s) => s.state);
+  const [joining, setJoining] = useState(false);
 
-  // Resolve mySeat by fetching snapshot (snapshot's viewer field)
+  usePusherRoom(code, viewerSeat);
+
+  const refetch = useCallback(async () => {
+    const r = await fetch(`/api/rooms/${code}/snapshot`);
+    if (r.ok) setSnapshot(await r.json());
+  }, [code, setSnapshot]);
+
+  // Recompute legal intents whenever our view of the game changes.
   useEffect(() => {
-    void (async () => {
-      const r = await fetch(`/api/rooms/${code}/snapshot`);
-      if (!r.ok) {
-        setMySeat(null);
-        return;
-      }
-      const snap = await r.json();
-      setMySeat(snap.viewer);
-    })();
+    setLegal(state ? viewerLegalIntents(state) : []);
+  }, [state]);
+
+  // Best-effort "I'm leaving" beacon so the server starts our grace timer.
+  useEffect(() => {
+    if (!code) return;
+    const onHide = () => { navigator.sendBeacon?.(`/api/rooms/${code}/leave`); };
+    window.addEventListener('pagehide', onHide);
+    return () => window.removeEventListener('pagehide', onHide);
   }, [code]);
 
-  usePusherRoom(code, mySeat ?? 0); // subscribes; harmless if mySeat null briefly
-
-  // After every snapshot/event change, compute legal intents client-side
+  // Serverless has no timers: while a human is away, nudge the room so their
+  // grace can expire and a bot can take over. Cheap 204 no-op otherwise.
+  const someoneAway = !!snapshot?.seats.some((s) => s.kind === 'human' && !s.connected);
   useEffect(() => {
-    if (!state) { setLegal([]); return; }
-    setLegal(viewerLegalIntents(state));
-  }, [state]);
+    if (phase !== 'playing' || !someoneAway) return;
+    const id = setInterval(() => { void fetch(`/api/rooms/${code}/tick`, { method: 'POST' }); }, TICK_MS);
+    return () => clearInterval(id);
+  }, [phase, someoneAway, code]);
 
   async function send(intent: Intent) {
     await fetch(`/api/rooms/${code}/intent`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ intent }),
     });
-    // Legal intents are recomputed automatically via the state effect when Pusher updates arrive
+    await refetch();
   }
 
   async function startRoom() {
     setStarting(true);
     try {
       await fetch(`/api/rooms/${code}/start`, { method: 'POST' });
+      await refetch();
     } finally {
       setStarting(false);
     }
   }
 
-  if (mySeat === null) {
+  async function joinRoom(displayName: string) {
+    setJoining(true);
+    try {
+      await fetch(`/api/rooms/${code}/join`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ displayName }),
+      });
+      await refetch();
+    } finally {
+      setJoining(false);
+    }
+  }
+
+  if (!snapshot) {
     return <main style={{ padding: '2rem' }}>Loading room {code}…</main>;
   }
 
-  if (!state) {
+  if (phase === 'lobby') {
+    return (
+      <Lobby
+        code={code}
+        seats={snapshot.seats}
+        viewerSeat={viewerSeat}
+        isHost={snapshot.isHost}
+        starting={starting}
+        onStart={startRoom}
+        joining={joining}
+        onJoin={joinRoom}
+      />
+    );
+  }
+
+  // A hand is running but this visitor isn't seated (no redacted state for them).
+  if (!state || viewerSeat === null) {
     return (
       <main style={{ padding: '2rem', maxWidth: 600, margin: '0 auto' }}>
         <h1>Room {code}</h1>
-        <p>Waiting in lobby. Share this URL with friends, then click Start.</p>
-        <button onClick={startRoom} disabled={starting} style={{ padding: '0.7rem 1.5rem' }}>
-          {starting ? 'Starting…' : 'Start hand (fill empty seats with bots)'}
-        </button>
+        <p>A hand is already in progress and there's no free seat. Hang tight for the next one.</p>
       </main>
     );
   }
 
-  const myHand = state.hands[mySeat];
+  const myHand = state.hands[viewerSeat];
   const ownTiles = myHand.own ? myHand.concealed : [];
-  const legalDiscards = new Set(legal.filter((i) => i.t === 'discard').map((i) => tileKey((i as Extract<Intent, { t: 'discard' }>).tile)));
+  const legalDiscards = new Set(
+    legal.filter((i) => i.t === 'discard').map((i) => tileKey((i as Extract<Intent, { t: 'discard' }>).tile)),
+  );
 
   return (
     <main style={{ padding: '1rem', maxWidth: 1000, margin: '0 auto' }}>
@@ -88,12 +134,13 @@ export default function RoomPage() {
         {[0, 1, 2, 3].map((s) => {
           const seat = s as Seat;
           const h = state.hands[seat];
+          const info = snapshot.seats[seat];
           const active = state.phase.t === 'awaitDiscard' && state.phase.seat === seat;
           return (
             <SeatView
               key={seat}
               seat={seat}
-              name={seat === mySeat ? 'You' : `Seat ${seat}`}
+              name={seat === viewerSeat ? 'You' : (info?.name ?? `Seat ${seat}`)}
               concealedCount={h.own ? h.concealed.length : h.concealedCount}
               exposed={h.exposed}
               flowers={h.flowers}
@@ -103,7 +150,7 @@ export default function RoomPage() {
         })}
       </section>
       <Discards discards={state.discards} />
-      <Hand tiles={ownTiles} legalDiscards={legalDiscards} onDiscard={(t) => send({ t: 'discard', seat: mySeat, tile: t })} />
+      <Hand tiles={ownTiles} legalDiscards={legalDiscards} onDiscard={(t) => send({ t: 'discard', seat: viewerSeat, tile: t })} />
       <ActionBar legalIntents={legal.filter((i) => i.t !== 'discard')} onIntent={send} />
       <ActionLog />
       {state.phase.t === 'ended' && (

@@ -63,15 +63,18 @@ describe('Full hand via API', () => {
       expect(snapRes.status).toBe(200);
       const snap = await snapRes.json();
 
+      // After start the snapshot always carries the redacted game state.
+      expect(snap.state).not.toBeNull();
+
       // Check if game ended
-      if (snap.phase.t === 'ended') {
+      if (snap.state.phase.t === 'ended') {
         break;
       }
 
       // Handle different phases for viewer (seat 0 = host/human)
-      if (snap.phase.t === 'awaitDiscard' && snap.viewer === 0) {
+      if (snap.state.phase.t === 'awaitDiscard' && snap.viewerSeat === 0) {
         // It's our turn to discard - discard first tile in hand
-        const hand = snap.hands[0];
+        const hand = snap.state.hands[0];
         if (!hand.own) throw new Error('Expected own hand');
         const tile = hand.concealed[0];
         if (!tile) throw new Error('No tiles in hand');
@@ -83,10 +86,10 @@ describe('Full hand via API', () => {
           { params: { code: roomCode } }
         );
         expect(intentRes.status).toBe(200);
-      } else if (snap.phase.t === 'awaitClaims') {
+      } else if (snap.state.phase.t === 'awaitClaims') {
         // Always pass on claims (for simplicity, human passes)
         // Check if viewer is in the claim phase
-        if (snap.viewer === 0) {
+        if (snap.viewerSeat === 0) {
           const intentRes = await sendIntent(
             mockReq(`http://localhost/api/rooms/${roomCode}/intent`, {
               intent: { t: 'pass', seat: 0 },
@@ -106,7 +109,7 @@ describe('Full hand via API', () => {
       { params: { code: roomCode } }
     );
     const finalSnap = await finalSnapRes.json();
-    expect(finalSnap.phase.t).toBe('ended');
+    expect(finalSnap.state.phase.t).toBe('ended');
 
     // Verify broadcasts were sent
     const broadcasts = getBroadcasts();

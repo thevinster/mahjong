@@ -5,7 +5,7 @@ import { getRoom } from '@/lib/rooms';
 import { casRoom } from '@/lib/kv';
 import { initialState, seededRng, heuristicPolicy, type Seat } from '@mahjong/engine';
 import { runBotTurnsInline } from '@/lib/bot-scheduler';
-import { broadcastEvent } from '@/lib/pusher-server';
+import { broadcastEvent, broadcastLobby } from '@/lib/pusher-server';
 
 export const runtime = 'nodejs';
 const SEATS: readonly Seat[] = [0, 1, 2, 3];
@@ -39,6 +39,9 @@ export async function POST(_req: NextRequest, ctx: { params: { code: string } })
     for (let i = 0; i < events.length; i++) {
       await broadcastEvent(room.code, events[i]!, baseSeq + i + 1);
     }
+    // Always signal the start so lobby clients transition into the hand, even
+    // when there were no leading bot events (the human dealer acts first).
+    await broadcastLobby(room.code, room.seq);
     return new NextResponse(null, { status: 204 });
   }
   return NextResponse.json({ error: 'conflict' }, { status: 409 });

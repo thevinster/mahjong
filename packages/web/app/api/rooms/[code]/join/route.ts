@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { getOrIssuePlayerId } from '@/lib/identity';
 import { joinAsHuman, getRoom } from '@/lib/rooms';
 import { reconcileGrace } from '@/lib/grace';
+import { broadcastLobby } from '@/lib/pusher-server';
 import type { JoinRoomRequest, JoinRoomResponse } from '@/lib/protocol';
 
 export const runtime = 'nodejs';
@@ -19,5 +20,7 @@ export async function POST(req: NextRequest, ctx: { params: { code: string } }):
     if (result.code === 'room_full') return NextResponse.json({ error: 'room is full' },   { status: 409 });
     return NextResponse.json({ error: 'join failed' }, { status: 400 });
   }
+  // Tell everyone already in the room to refresh the lobby roster.
+  await broadcastLobby(ctx.params.code, result.room.seq);
   return NextResponse.json({ seat: result.seat });
 }

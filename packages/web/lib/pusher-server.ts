@@ -44,6 +44,16 @@ export async function broadcastEvent(code: string, event: Event, seq: number): P
 }
 
 /**
+ * Broadcast a "room changed, refetch your snapshot" ping on the public room
+ * channel. Used for lobby changes (join/leave) and for hand start — the latter
+ * may produce zero game events (the human dealer acts first), so without this
+ * other lobby clients would never learn the hand began.
+ */
+export async function broadcastLobby(code: string, seq: number): Promise<void> {
+  await getPusher().trigger(roomChannel(code), 's:lobby', { seq });
+}
+
+/**
  * Sign a Pusher private-channel subscription request. Called from /api/pusher/auth.
  */
 export function authenticateChannel(socketId: string, channel: string, userId: string): string {

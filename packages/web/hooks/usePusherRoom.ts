@@ -2,38 +2,60 @@
 import { useEffect } from 'react';
 import { getPusherClient } from '@/lib/pusher-client';
 import { useGame } from './useGame';
-import type { Seat, Event, RedactedGameState } from '@mahjong/engine';
+import type { Seat, Event } from '@mahjong/engine';
+import type { RoomSnapshot } from '@/lib/protocol';
 
 /**
- * Subscribes to the room's public channel + this seat's private channel.
- * On every s:event, calls store.applyEvent. Fetches an initial snapshot on mount.
+ * Keeps the store in sync with the server. The server is the single source of
+ * truth, so on every realtime push we refetch the per-seat redacted snapshot
+ * (client-side reduction is impossible on redacted state). `s:event` also feeds
+ * the action log.
+ *
+ * Subscribes to the public room channel always; the seat-private channel only
+ * once the viewer's seat is known (the auth route 403s non-owners).
  */
-export function usePusherRoom(roomCode: string, mySeat: Seat) {
-  const { setSnapshot, applyEvent } = useGame();
+export function usePusherRoom(roomCode: string, viewerSeat: Seat | null) {
+  const setSnapshot = useGame((s) => s.setSnapshot);
+  const applyEvent = useGame((s) => s.applyEvent);
 
   useEffect(() => {
+    if (!roomCode) return;
     let cancelled = false;
-    void (async () => {
+
+    async function refetch() {
       const r = await fetch(`/api/rooms/${roomCode}/snapshot`);
-      if (!r.ok) return;
-      const snap: RedactedGameState = await r.json();
-      if (cancelled) return;
-      setSnapshot(snap);
-    })();
+      if (!r.ok || cancelled) return;
+      const snap: RoomSnapshot = await r.json();
+      if (!cancelled) setSnapshot(snap);
+    }
+
+    void refetch(); // initial load
 
     const pusher = getPusherClient();
-    const roomChan = pusher.subscribe(`private-room-${roomCode}`);
-    const seatChan = pusher.subscribe(`private-room-${roomCode}-seat-${mySeat}`);
-    const onEvent = (msg: { event: Event; seq: number }) => applyEvent(msg.event, msg.seq);
+    const onEvent = (msg: { event: Event; seq: number }) => {
+      applyEvent(msg.event, msg.seq);
+      void refetch();
+    };
+    const onLobby = () => { void refetch(); };
+
+    const roomName = `private-room-${roomCode}`;
+    const roomChan = pusher.subscribe(roomName);
     roomChan.bind('s:event', onEvent);
-    seatChan.bind('s:event', onEvent);
+    roomChan.bind('s:lobby', onLobby);
+
+    const seatName = viewerSeat !== null ? `private-room-${roomCode}-seat-${viewerSeat}` : null;
+    const seatChan = seatName ? pusher.subscribe(seatName) : null;
+    seatChan?.bind('s:event', onEvent);
 
     return () => {
       cancelled = true;
       roomChan.unbind('s:event', onEvent);
-      seatChan.unbind('s:event', onEvent);
-      pusher.unsubscribe(`private-room-${roomCode}`);
-      pusher.unsubscribe(`private-room-${roomCode}-seat-${mySeat}`);
+      roomChan.unbind('s:lobby', onLobby);
+      pusher.unsubscribe(roomName);
+      if (seatName) {
+        seatChan?.unbind('s:event', onEvent);
+        pusher.unsubscribe(seatName);
+      }
     };
-  }, [roomCode, mySeat, setSnapshot, applyEvent]);
+  }, [roomCode, viewerSeat, setSnapshot, applyEvent]);
 }
