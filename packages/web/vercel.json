@@ -1,0 +1,5 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "pnpm -F @mahjong/engine exec tsc -b --force && pnpm -F @mahjong/web build",
+  "installCommand": "pnpm install --frozen-lockfile"
+}

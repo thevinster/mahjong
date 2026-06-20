@@ -1,6 +1,0 @@
-{
-  "buildCommand": "pnpm -F @mahjong/engine build && pnpm -F @mahjong/web build",
-  "installCommand": "pnpm install --frozen-lockfile",
-  "outputDirectory": "packages/web/.next",
-  "framework": "nextjs"
-}
