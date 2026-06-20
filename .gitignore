@@ -8,3 +8,8 @@ coverage/
 playwright-report/
 test-results/
 *.tsbuildinfo
+.next/
+.vercel/
+.env
+.env.local
+.env*.local
