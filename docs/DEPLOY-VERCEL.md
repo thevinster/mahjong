@@ -10,6 +10,25 @@ This guide covers deploying the Mahjong web application to Vercel.
 
 ## One-Time Setup
 
+### 0. Project Import — Root Directory (IMPORTANT)
+
+This is a pnpm monorepo. The Next.js app lives in `packages/web`, which depends
+on the `@mahjong/engine` workspace package.
+
+When importing the repo into Vercel (or in **Settings → Build and Deployment**):
+
+- Set **Root Directory** to `packages/web`.
+- Do **not** set a custom Output Directory (leave it default — Vercel resolves
+  `.next` relative to the Root Directory).
+
+Why: Vercel detects the framework and reads `vercel.json` **from the Root
+Directory**. `packages/web/vercel.json` force-builds the engine first, then the
+web app. If Root Directory is left at the repo root you'll get "No Next.js
+version detected" (the root `package.json` has no `next`). If it's `packages/web`
+*and* a config also prepends `packages/web` to the output path, you'll get a
+doubled `packages/web/packages/web/.next`. Root Directory = `packages/web` with
+the committed `packages/web/vercel.json` (no path prefixes) avoids both.
+
 ### 1. Pusher Account Setup
 
 1. Sign up at [pusher.com](https://pusher.com/)
@@ -36,16 +55,24 @@ PUSHER_APP_ID=<your-app-id>
 PUSHER_KEY=<your-key>
 PUSHER_SECRET=<your-secret>
 PUSHER_CLUSTER=<your-cluster>
+NEXT_PUBLIC_PUSHER_KEY=<your-key>
+NEXT_PUBLIC_PUSHER_CLUSTER=<your-cluster>
 ```
+
+`NEXT_PUBLIC_PUSHER_KEY` and `NEXT_PUBLIC_PUSHER_CLUSTER` are required — the
+browser client reads them to subscribe to channels. They hold the SAME values as
+`PUSHER_KEY` and `PUSHER_CLUSTER` (the `NEXT_PUBLIC_` prefix makes Vercel inline
+them into the client bundle; never expose `PUSHER_SECRET` this way).
 
 The KV variables are auto-injected when you create a Vercel KV database.
 
 ### 4. Deploy
 
-Push to your connected branch (e.g., `main` or `master`). Vercel will:
-1. Install dependencies via `pnpm install --frozen-lockfile`
-2. Build engine package: `pnpm -F @mahjong/engine build`
-3. Build web package: `pnpm -F @mahjong/web build`
+Push to your connected branch (e.g., `main` or `master`). With Root Directory =
+`packages/web`, Vercel reads `packages/web/vercel.json` and will:
+1. Install dependencies via `pnpm install --frozen-lockfile` (resolves the whole workspace)
+2. Force-build the engine: `pnpm -F @mahjong/engine exec tsc -b --force`
+3. Build the web package: `pnpm -F @mahjong/web build`
 4. Deploy the Next.js app from `packages/web/.next`
 
 ## Local Development Against Real Pusher/KV
