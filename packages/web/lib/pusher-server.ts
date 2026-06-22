@@ -40,6 +40,16 @@ export async function broadcastEvent(code: string, event: Event, seq: number): P
     });
     return;
   }
+  if (event.t === 'flowerReplaced' && event.replacement) {
+    // The replacement tile is a private draw — send the full event to the owner,
+    // and a stripped version (flower only) to everyone else.
+    await getPusher().trigger(seatChannel(code, event.seat), 's:event', { event, seq });
+    await getPusher().trigger(roomChannel(code), 's:event', {
+      event: { t: 'flowerReplaced', seat: event.seat, flower: event.flower },
+      seq,
+    });
+    return;
+  }
   await getPusher().trigger(roomChannel(code), 's:event', { event, seq });
 }
 

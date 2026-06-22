@@ -7,7 +7,7 @@ export function Discards({ discards }: { discards: readonly { seat: Seat; tile: 
       <div style={{ fontSize: 12, color: '#666' }}>River ({discards.length} discards)</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2, marginTop: 4 }}>
         {discards.map((d, i) => (
-          <TileFace key={i} tile={d.tile} size={34} />
+          <TileFace key={i} tile={d.tile} size={46} />
         ))}
       </div>
     </div>

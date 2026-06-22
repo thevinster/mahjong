@@ -6,6 +6,7 @@ import { SeatView } from '@/components/Seat';
 import { Discards } from '@/components/Discards';
 import { ActionBar } from '@/components/ActionBar';
 import { ActionLog } from '@/components/ActionLog';
+import { EndPanel } from '@/components/EndPanel';
 import { Lobby } from '@/components/Lobby';
 import { useGame } from '@/hooks/useGame';
 import { usePusherRoom } from '@/hooks/usePusherRoom';
@@ -154,10 +155,7 @@ export default function RoomPage() {
       <ActionBar legalIntents={legal.filter((i) => i.t !== 'discard')} onIntent={send} />
       <ActionLog />
       {state.phase.t === 'ended' && (
-        <div style={{ marginTop: 16, padding: 12, background: '#dfd', borderRadius: 6 }}>
-          <h3>Hand ended {state.phase.winner === null ? '(draw)' : `— winner: seat ${state.phase.winner}`}</h3>
-          <pre>{JSON.stringify(state.phase.score, null, 2)}</pre>
-        </div>
+        <EndPanel winner={state.phase.winner} score={state.phase.score} viewerSeat={viewerSeat} />
       )}
     </main>
   );

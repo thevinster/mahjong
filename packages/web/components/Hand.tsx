@@ -16,7 +16,7 @@ export function Hand({
         {tiles.map((t, i) => {
           const id = `${t.kind}:${t.kind === 'suit' ? `${t.suit}${t.rank}` : t.kind === 'honor' ? t.honor : t.flower}`;
           return (
-            <Tile key={`${id}-${i}`} tile={t} onClick={() => onDiscard(t)} dimmed={!legalDiscards.has(id)} />
+            <Tile key={`${id}-${i}`} tile={t} onClick={() => onDiscard(t)} dimmed={!legalDiscards.has(id)} size={64} />
           );
         })}
       </div>

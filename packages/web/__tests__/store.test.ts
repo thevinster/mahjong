@@ -42,4 +42,11 @@ describe('useGame store', () => {
     g().applyEvent(ev, 2);
     expect(g().log).toHaveLength(2);
   });
+
+  it('stores the raw event on each log entry so the UI can render tile faces', () => {
+    const g = () => useGame.getState();
+    const ev = { t: 'discarded', seat: 1, tile: { kind: 'suit', suit: 'p', rank: 5 } } as Event;
+    g().applyEvent(ev, 1);
+    expect(g().log[0]!.ev).toEqual(ev);
+  });
 });

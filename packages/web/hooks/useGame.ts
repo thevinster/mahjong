@@ -3,7 +3,7 @@ import { create } from 'zustand';
 import type { Event } from '@mahjong/engine';
 import type { RoomSnapshot } from '@/lib/protocol';
 
-type LogEntry = { id: number; text: string };
+type LogEntry = { id: number; ev: Event };
 
 type GameStore = {
   snapshot: RoomSnapshot | null;
@@ -39,7 +39,7 @@ export const useGame = create<GameStore>((set) => ({
   applyEvent(ev, seq) {
     set((cur) => {
       if (seq <= cur.lastSeq) return cur; // duplicate / out-of-order
-      return { ...cur, lastSeq: seq, log: [...cur.log, { id: nextLogId++, text: describeEvent(ev) }] };
+      return { ...cur, lastSeq: seq, log: [...cur.log, { id: nextLogId++, ev }] };
     });
   },
   reset() {
@@ -51,21 +51,3 @@ function phaseRank(p: RoomSnapshot['phase'] | undefined): number {
   return p === 'ended' ? 2 : p === 'playing' ? 1 : p === 'lobby' ? 0 : -1;
 }
 
-function describeEvent(ev: Event): string {
-  switch (ev.t) {
-    case 'dealt':           return 'Dealt';
-    case 'drew':            return `Seat ${ev.seat} drew`;
-    case 'discarded':       return `Seat ${ev.seat} discarded ${describeTile(ev.tile)}`;
-    case 'flowerReplaced':  return `Seat ${ev.seat} replaced flower ${ev.flower}`;
-    case 'melded':          return `Seat ${ev.seat} melded ${ev.meld.kind}`;
-    case 'won':             return `Seat ${ev.seat} won (${ev.score} tai) from ${ev.from}`;
-    case 'drawWall':        return `Wall exhausted — draw`;
-  }
-}
-function describeTile(t: import('@mahjong/engine').Tile): string {
-  switch (t.kind) {
-    case 'suit':   return `${t.suit}${t.rank}`;
-    case 'honor':  return t.honor;
-    case 'flower': return t.flower;
-  }
-}
