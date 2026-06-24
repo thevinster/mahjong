@@ -11,6 +11,7 @@ import { Lobby } from '@/components/Lobby';
 import { useGame } from '@/hooks/useGame';
 import { usePusherRoom } from '@/hooks/usePusherRoom';
 import { viewerLegalIntents } from '@/lib/client-legal';
+import { sortTiles } from '@mahjong/engine';
 import type { Intent, Seat, Tile as TileT } from '@mahjong/engine';
 
 const TICK_MS = 8000;
@@ -120,7 +121,8 @@ export default function RoomPage() {
   }
 
   const myHand = state.hands[viewerSeat];
-  const ownTiles = myHand.own ? myHand.concealed : [];
+  // Sort the hand for readability: identical tiles grouped, ordered by suit/style.
+  const ownTiles = myHand.own ? sortTiles(myHand.concealed) : [];
   const legalDiscards = new Set(
     legal.filter((i) => i.t === 'discard').map((i) => tileKey((i as Extract<Intent, { t: 'discard' }>).tile)),
   );

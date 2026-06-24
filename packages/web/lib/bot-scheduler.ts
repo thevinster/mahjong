@@ -1,4 +1,4 @@
-import { buildBotView, seededRng, heuristicPolicy, type Seat, type BotPolicy } from '@mahjong/engine';
+import { buildBotView, legalIntents, seededRng, heuristicPolicy, type Seat, type BotPolicy, type GameState } from '@mahjong/engine';
 import type { Room } from './rooms';
 import { applyIntent } from './dispatcher';
 
@@ -17,27 +17,52 @@ function nextActor(room: Room): Seat | null {
   return null;
 }
 
+/** Does this seat have a real (non-pass) option right now? */
+function seatHasChoice(state: GameState, seat: Seat): boolean {
+  return legalIntents(state, seat).some((i) => i.t !== 'pass');
+}
+function seatCanPass(state: GameState, seat: Seat): boolean {
+  return legalIntents(state, seat).some((i) => i.t === 'pass');
+}
+
 /**
- * Loop while the next actor is a bot. Returns the combined event stream.
- * NO setTimeout — this runs synchronously within the single intent request
- * so all consecutive bot turns are processed before the API response returns.
+ * Advance the game without human input wherever no real decision is required:
+ *   - bot seats play their policy move;
+ *   - human seats in awaitClaims with NO claim available are auto-passed
+ *     (their only legal move is pass, so clicking it adds nothing).
+ * Stops as soon as a human must actually choose (discard, or a real claim) or
+ * the hand ends. Runs synchronously within the request — no setTimeout.
  *
- * Cap at MAX_TURNS to defend against pathological loops; should never fire
- * in normal play.
+ * MAX_TURNS is a high backstop so an all-bot hand (e.g. after a disconnect)
+ * can finish in a single call; a normal hand stops at the human far sooner.
  */
-export function runBotTurnsInline(room: Room, MAX_TURNS = 50): import('@mahjong/engine').Event[] {
+export function runBotTurnsInline(room: Room, MAX_TURNS = 400): import('@mahjong/engine').Event[] {
   const events: import('@mahjong/engine').Event[] = [];
   for (let i = 0; i < MAX_TURNS; i++) {
     const seat = nextActor(room);
     if (seat === null) return events;
-    const b = room.seats[seat];
-    if (b.kind !== 'bot') return events;
-    const policy = POLICIES[b.policyName] ?? heuristicPolicy;
-    const view = buildBotView(room.state!, seat, seededRng(room.seq + seat + 1));
-    const intent = policy.decide(view);
-    const result = applyIntent(room, seat, intent);
-    if (!result.ok) return events;
-    events.push(...result.events);
+    const state = room.state!;
+    const binding = room.seats[seat];
+
+    if (binding.kind === 'bot') {
+      const policy = POLICIES[binding.policyName] ?? heuristicPolicy;
+      const view = buildBotView(state, seat, seededRng(room.seq + seat + 1));
+      const intent = policy.decide(view);
+      const result = applyIntent(room, seat, intent);
+      if (!result.ok) return events;
+      events.push(...result.events);
+      continue;
+    }
+
+    // Human: only auto-act for a no-choice claim (pass is their sole legal move).
+    if (state.phase.t === 'awaitClaims' && !seatHasChoice(state, seat) && seatCanPass(state, seat)) {
+      const result = applyIntent(room, seat, { t: 'pass', seat });
+      if (!result.ok) return events;
+      events.push(...result.events);
+      continue;
+    }
+
+    return events; // a human must make a real decision
   }
   return events;
 }
