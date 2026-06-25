@@ -49,4 +49,18 @@ describe('useGame store', () => {
     g().applyEvent(ev, 1);
     expect(g().log[0]!.ev).toEqual(ev);
   });
+
+  it('records the viewer\'s own draw (private tileForSeat) for highlighting', () => {
+    const g = () => useGame.getState();
+    g().applyEvent({ t: 'drew', seat: 0, tileForSeat: { kind: 'suit', suit: 'p', rank: 5 } } as Event, 3);
+    expect(g().recentDrawId).toBe('p5');
+    g().clearRecentDraw();
+    expect(g().recentDrawId).toBeNull();
+  });
+
+  it('ignores redacted drew events (no tileForSeat) for highlighting', () => {
+    const g = () => useGame.getState();
+    g().applyEvent({ t: 'drew', seat: 1 } as Event, 4);
+    expect(g().recentDrawId).toBeNull();
+  });
 });

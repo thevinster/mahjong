@@ -11,8 +11,9 @@ import { Lobby } from '@/components/Lobby';
 import { useGame } from '@/hooks/useGame';
 import { usePusherRoom } from '@/hooks/usePusherRoom';
 import { viewerLegalIntents } from '@/lib/client-legal';
-import { sortTiles } from '@mahjong/engine';
-import type { Intent, Seat, Tile as TileT } from '@mahjong/engine';
+import { arrangeHand } from '@/lib/arrange-hand';
+import { tileId } from '@mahjong/engine';
+import type { Intent, Seat } from '@mahjong/engine';
 
 const TICK_MS = 8000;
 
@@ -22,6 +23,9 @@ export default function RoomPage() {
 
   const snapshot = useGame((s) => s.snapshot);
   const setSnapshot = useGame((s) => s.setSnapshot);
+  const recentDrawId = useGame((s) => s.recentDrawId);
+  const drawToken = useGame((s) => s.drawToken);
+  const clearRecentDraw = useGame((s) => s.clearRecentDraw);
 
   const viewerSeat = snapshot?.viewerSeat ?? null;
   const state = snapshot?.state ?? null;
@@ -30,6 +34,8 @@ export default function RoomPage() {
   const [legal, setLegal] = useState<Intent[]>([]);
   const [starting, setStarting] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [manualOrder, setManualOrder] = useState<string[] | null>(null);
+  const [highlightId, setHighlightId] = useState<string | null>(null);
 
   usePusherRoom(code, viewerSeat);
 
@@ -42,6 +48,14 @@ export default function RoomPage() {
   useEffect(() => {
     setLegal(state ? viewerLegalIntents(state) : []);
   }, [state]);
+
+  // Highlight the tile we just drew for a couple seconds, then let it blend in.
+  useEffect(() => {
+    if (!recentDrawId) return;
+    setHighlightId(recentDrawId);
+    const t = setTimeout(() => { setHighlightId(null); clearRecentDraw(); }, 2500);
+    return () => clearTimeout(t);
+  }, [drawToken, recentDrawId, clearRecentDraw]);
 
   // Best-effort "I'm leaving" beacon so the server starts our grace timer.
   useEffect(() => {
@@ -121,10 +135,12 @@ export default function RoomPage() {
   }
 
   const myHand = state.hands[viewerSeat];
-  // Sort the hand for readability: identical tiles grouped, ordered by suit/style.
-  const ownTiles = myHand.own ? sortTiles(myHand.concealed) : [];
+  const concealed = myHand.own ? myHand.concealed : [];
+  // Auto-sorted by default; honours the player's manual arrangement when set, and
+  // briefly floats the just-drawn tile at the end before it blends in.
+  const arranged = arrangeHand(concealed, manualOrder, highlightId);
   const legalDiscards = new Set(
-    legal.filter((i) => i.t === 'discard').map((i) => tileKey((i as Extract<Intent, { t: 'discard' }>).tile)),
+    legal.filter((i) => i.t === 'discard').map((i) => tileId((i as Extract<Intent, { t: 'discard' }>).tile)),
   );
 
   return (
@@ -153,7 +169,22 @@ export default function RoomPage() {
         })}
       </section>
       <Discards discards={state.discards} />
-      <Hand tiles={ownTiles} legalDiscards={legalDiscards} onDiscard={(t) => send({ t: 'discard', seat: viewerSeat, tile: t })} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 0.5rem', marginTop: 4 }}>
+        <button
+          onClick={() => setManualOrder(null)}
+          style={{ padding: '0.3rem 0.8rem', fontSize: 13, borderRadius: 6, border: '1px solid #ccc', background: '#f4f4f4', cursor: 'pointer' }}
+        >
+          Sort
+        </button>
+        {manualOrder && <span style={{ fontSize: 12, color: '#888' }}>custom order</span>}
+      </div>
+      <Hand
+        arranged={arranged}
+        legalDiscards={legalDiscards}
+        onDiscard={(t) => send({ t: 'discard', seat: viewerSeat, tile: t })}
+        onReorder={setManualOrder}
+        size={64}
+      />
       <ActionBar legalIntents={legal.filter((i) => i.t !== 'discard')} onIntent={send} />
       <ActionLog />
       {state.phase.t === 'ended' && (
@@ -161,12 +192,4 @@ export default function RoomPage() {
       )}
     </main>
   );
-}
-
-function tileKey(t: TileT): string {
-  switch (t.kind) {
-    case 'suit':   return `suit:${t.suit}${t.rank}`;
-    case 'honor':  return `honor:${t.honor}`;
-    case 'flower': return `flower:${t.flower}`;
-  }
 }
