@@ -164,11 +164,31 @@ Visit `http://localhost:3000`
 - KV database may be empty after first deploy
 - Create a new room via the landing page
 
-### Pusher events not received
+### Updates are slow (~2–3s) instead of instant
 
-- Check Pusher dashboard → Debug Console for incoming triggers
-- Verify `PUSHER_KEY` in environment variables matches the client-side key
-- Check browser console for Pusher connection errors
+The client has two sync paths: **Pusher** (instant) and a **polling fallback**
+(every 2.5s). If other players' moves / lobby joins only appear after a couple of
+seconds — rather than instantly — Pusher isn't connecting and polling is carrying
+the updates. The game is still playable; fix Pusher for the snappy experience:
+
+- Open the browser console and look for `[room-sync] realtime unavailable, falling
+  back to polling: …`. Its presence confirms the Pusher client failed to start.
+- The most common cause is missing **`NEXT_PUBLIC_PUSHER_KEY`** /
+  **`NEXT_PUBLIC_PUSHER_CLUSTER`**. These are inlined at **build time**, so after
+  adding them you must **redeploy** (re-run the build) — changing them in the
+  dashboard alone does nothing to an already-built bundle.
+- Verify `NEXT_PUBLIC_PUSHER_CLUSTER` matches your Pusher app's cluster exactly
+  (e.g. `us2`, `eu`, `ap1`). A wrong cluster connects to the wrong edge and
+  silently receives nothing.
+
+### Pusher events not received at all
+
+- Check Pusher dashboard → Debug Console for incoming triggers (confirms the
+  server side is publishing)
+- Verify `NEXT_PUBLIC_PUSHER_KEY` matches the server-side `PUSHER_KEY`
+- Check browser console for Pusher connection / auth (`/api/pusher/auth`) errors
+- Free tier caps at **100 concurrent connections** — if you blow past it, new
+  clients can't subscribe and fall back to polling
 
 ### Build fails with "workspace not found"
 
