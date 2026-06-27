@@ -1,7 +1,8 @@
 'use client';
 import { create } from 'zustand';
-import { tileId, type Event } from '@mahjong/engine';
+import type { Event } from '@mahjong/engine';
 import type { RoomSnapshot } from '@/lib/protocol';
+import { detectDraw } from '@/lib/detect-draw';
 
 type LogEntry = { id: number; ev: Event };
 
@@ -34,26 +35,25 @@ export const useGame = create<GameStore>((set) => ({
     // equal seq break ties by phase rank so a stale `lobby` can never revert a
     // live `playing`/`ended` board, while forward transitions still apply.
     set((cur) => {
-      if (s.seq > cur.snapshotSeq) return { snapshot: s, snapshotSeq: s.seq };
-      if (s.seq === cur.snapshotSeq && phaseRank(s.phase) >= phaseRank(cur.snapshot?.phase)) {
-        return { snapshot: s, snapshotSeq: s.seq };
-      }
-      return cur;
+      const accept =
+        s.seq > cur.snapshotSeq ||
+        (s.seq === cur.snapshotSeq && phaseRank(s.phase) >= phaseRank(cur.snapshot?.phase));
+      if (!accept) return cur;
+      // Drive the "just drew" highlight off the snapshot diff (not the Pusher
+      // event) so it fires on both the realtime push and the polling fallback —
+      // i.e. whenever the hand actually grows by a tile.
+      const drawn = detectDraw(cur.snapshot, s);
+      return {
+        snapshot: s,
+        snapshotSeq: s.seq,
+        ...(drawn ? { recentDrawId: drawn, drawToken: cur.drawToken + 1 } : {}),
+      };
     });
   },
   applyEvent(ev, seq) {
     set((cur) => {
       if (seq <= cur.lastSeq) return cur; // duplicate / out-of-order
-      // A drew event with a private tileForSeat only ever reaches the viewer for
-      // their OWN draw (the room channel copy is redacted), so flag it for the
-      // just-drew highlight.
-      const myDraw = ev.t === 'drew' && 'tileForSeat' in ev && ev.tileForSeat ? ev.tileForSeat : null;
-      return {
-        ...cur,
-        lastSeq: seq,
-        log: [...cur.log, { id: nextLogId++, ev }],
-        ...(myDraw ? { recentDrawId: tileId(myDraw), drawToken: cur.drawToken + 1 } : {}),
-      };
+      return { ...cur, lastSeq: seq, log: [...cur.log, { id: nextLogId++, ev }] };
     });
   },
   clearRecentDraw() {

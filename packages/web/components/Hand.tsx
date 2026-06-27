@@ -79,7 +79,7 @@ export function Hand({
       <div style={{ fontSize: 12, color: '#666' }}>
         Your hand ({order.length}) — drag to rearrange, tap to discard
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', minHeight: size }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', minHeight: size, paddingTop: 22 }}>
         {order.map((a, i) => {
           const id = tileId(a.tile);
           const legal = legalDiscards.has(id);
@@ -92,14 +92,28 @@ export function Hand({
               onPointerUp={(e) => onPointerUp(e, a)}
               onPointerCancel={onPointerCancel}
               style={{
+                position: 'relative',
                 touchAction: 'none', userSelect: 'none', cursor: 'grab',
                 margin: '0.15rem',
-                transform: a.drawn ? 'translateY(-12px)' : undefined,
-                filter: a.drawn ? 'drop-shadow(0 0 7px #f5c518)' : undefined,
+                transform: a.drawn ? 'translateY(-14px)' : undefined,
+                filter: a.drawn ? 'drop-shadow(0 0 9px #f5c518)' : undefined,
                 opacity: legal || a.drawn ? 1 : 0.6,
                 transition: 'transform 0.2s ease, filter 0.2s ease',
               }}
             >
+              {a.drawn && (
+                <span
+                  style={{
+                    position: 'absolute', top: -18, left: '50%', transform: 'translateX(-50%)',
+                    background: '#f5c518', color: '#222', fontSize: 10, fontWeight: 700,
+                    letterSpacing: '0.04em', padding: '1px 6px', borderRadius: 7,
+                    pointerEvents: 'none', whiteSpace: 'nowrap',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.35)',
+                  }}
+                >
+                  NEW
+                </span>
+              )}
               <TileFace tile={a.tile} size={size} />
             </div>
           );

@@ -1,10 +1,24 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useGame } from '../hooks/useGame';
 import type { RoomSnapshot } from '../lib/protocol';
-import type { Event } from '@mahjong/engine';
+import type { Event, Tile } from '@mahjong/engine';
 
 function snap(seq: number): RoomSnapshot {
   return { code: 'TEST', phase: 'playing', viewerSeat: 0, isHost: true, seq, seats: [], state: null };
+}
+
+const p = (rank: number): Tile => ({ kind: 'suit', suit: 'p', rank } as Tile);
+
+function snapHand(concealed: Tile[], seq: number): RoomSnapshot {
+  const other = () => ({ own: false, concealedCount: 0, exposed: [], flowers: [] });
+  const hands: Record<number, unknown> = {
+    0: { own: true, concealed, exposed: [], flowers: [] },
+    1: other(), 2: other(), 3: other(),
+  };
+  return {
+    code: 'T', phase: 'playing', viewerSeat: 0, isHost: true, seq, seats: [],
+    state: { hands },
+  } as unknown as RoomSnapshot;
 }
 
 describe('useGame store', () => {
@@ -50,17 +64,30 @@ describe('useGame store', () => {
     expect(g().log[0]!.ev).toEqual(ev);
   });
 
-  it('records the viewer\'s own draw (private tileForSeat) for highlighting', () => {
+  it('highlights the newly drawn tile when the viewer\'s hand grows (snapshot-driven)', () => {
     const g = () => useGame.getState();
-    g().applyEvent({ t: 'drew', seat: 0, tileForSeat: { kind: 'suit', suit: 'p', rank: 5 } } as Event, 3);
+    g().setSnapshot(snapHand([p(1), p(2)], 1));
+    expect(g().recentDrawId).toBeNull(); // first load: nothing is "new" yet
+    g().setSnapshot(snapHand([p(1), p(2), p(5)], 2));
     expect(g().recentDrawId).toBe('p5');
+    expect(g().drawToken).toBe(1);
     g().clearRecentDraw();
     expect(g().recentDrawId).toBeNull();
   });
 
-  it('ignores redacted drew events (no tileForSeat) for highlighting', () => {
+  it('does not re-highlight when a poll returns the same hand', () => {
     const g = () => useGame.getState();
-    g().applyEvent({ t: 'drew', seat: 1 } as Event, 4);
+    g().setSnapshot(snapHand([p(1), p(2), p(5)], 1));
+    const token = g().drawToken;
+    g().setSnapshot(snapHand([p(1), p(2), p(5)], 2)); // identical hand, newer seq
+    expect(g().drawToken).toBe(token);
+    expect(g().recentDrawId).toBeNull();
+  });
+
+  it('appends a drew event to the log but does not drive the highlight (now snapshot-driven)', () => {
+    const g = () => useGame.getState();
+    g().applyEvent({ t: 'drew', seat: 0, tileForSeat: { kind: 'suit', suit: 'p', rank: 5 } } as Event, 3);
+    expect(g().log).toHaveLength(1);
     expect(g().recentDrawId).toBeNull();
   });
 });
