@@ -2,7 +2,6 @@ import type { GameState, Intent, Seat } from './game.js';
 import type { Tile, SuitTile } from './tiles.js';
 import { tileId, tilesEqual } from './tiles.js';
 import { isWinningHand, partitionRemainder } from './win.js';
-import { meldTiles } from './meld.js';
 
 export function legalIntents(state: GameState, seat: Seat): Intent[] {
   const out: Intent[] = [];
@@ -21,16 +20,14 @@ export function legalIntents(state: GameState, seat: Seat): Intent[] {
       out.push({ t: 'discard', seat, tile: t });
     }
 
-    // self-win on current 17-tile hand (concealed + exposed already account for full hand)
-    const totalTiles = hand.concealed.length
-      + hand.exposed.reduce((n, m) => n + meldTiles(m).length, 0);
-    if (totalTiles % 3 === 2) {
-      // try to find a winning partition of concealed remainder, given exposed melds account for the rest
-      const exposedMelds = hand.exposed.length;
-      const targetMelds = 5 - exposedMelds;
-      if (partitionRemainder(hand.concealed, targetMelds).length > 0) {
-        out.push({ t: 'declareSelfWin', seat });
-      }
+    // self-win: the concealed remainder must form (5 - exposedMelds) melds + a
+    // pair. partitionRemainder enforces the exact tile count itself, so no extra
+    // length guard is needed. (A guard on TOTAL tile count is wrong: a kong is 4
+    // tiles but only one meld, so a winning hand with K kongs has 17 + K tiles —
+    // a `% 3 === 2` check rejects legitimate self-wins whenever K is 1 or 2.)
+    const selfWinTargetMelds = 5 - hand.exposed.length;
+    if (partitionRemainder(hand.concealed, selfWinTargetMelds).length > 0) {
+      out.push({ t: 'declareSelfWin', seat });
     }
 
     // concealed kong on any 4-of-a-kind in concealed
