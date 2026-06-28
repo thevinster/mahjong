@@ -70,17 +70,14 @@ describe('useGame store', () => {
     expect(g().recentDrawId).toBeNull(); // first load: nothing is "new" yet
     g().setSnapshot(snapHand([p(1), p(2), p(5)], 2));
     expect(g().recentDrawId).toBe('p5');
-    expect(g().drawToken).toBe(1);
     g().clearRecentDraw();
     expect(g().recentDrawId).toBeNull();
   });
 
-  it('does not re-highlight when a poll returns the same hand', () => {
+  it('does not re-flag a draw when a poll returns the same hand', () => {
     const g = () => useGame.getState();
     g().setSnapshot(snapHand([p(1), p(2), p(5)], 1));
-    const token = g().drawToken;
     g().setSnapshot(snapHand([p(1), p(2), p(5)], 2)); // identical hand, newer seq
-    expect(g().drawToken).toBe(token);
     expect(g().recentDrawId).toBeNull();
   });
 

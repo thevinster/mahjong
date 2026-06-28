@@ -11,8 +11,7 @@ type GameStore = {
   log: LogEntry[];
   lastSeq: number;      // highest event seq folded into the log (dedup guard)
   snapshotSeq: number;  // seq of the currently-held snapshot (staleness guard)
-  recentDrawId: string | null; // id of the viewer's just-drawn tile (for highlight)
-  drawToken: number;    // bumps on each self-draw so the UI can re-arm its timer
+  recentDrawId: string | null; // id of the viewer's just-drawn tile, held apart until Sort
   setSnapshot: (s: RoomSnapshot) => void;
   applyEvent: (ev: Event, seq: number) => void;
   clearRecentDraw: () => void;
@@ -27,7 +26,6 @@ export const useGame = create<GameStore>((set) => ({
   lastSeq: 0,
   snapshotSeq: -1,
   recentDrawId: null,
-  drawToken: 0,
   setSnapshot(s) {
     // Snapshots can arrive out of order (refetches are fire-and-forget; bot
     // bursts trigger several). `seq` only counts game events, so the whole lobby
@@ -39,14 +37,15 @@ export const useGame = create<GameStore>((set) => ({
         s.seq > cur.snapshotSeq ||
         (s.seq === cur.snapshotSeq && phaseRank(s.phase) >= phaseRank(cur.snapshot?.phase));
       if (!accept) return cur;
-      // Drive the "just drew" highlight off the snapshot diff (not the Pusher
-      // event) so it fires on both the realtime push and the polling fallback —
-      // i.e. whenever the hand actually grows by a tile.
+      // Mark the just-drawn tile off the snapshot diff (not the Pusher event) so
+      // it's detected on both the realtime push and the polling fallback — i.e.
+      // whenever the hand actually grows by a tile. It stays held apart until the
+      // player clicks Sort (which calls clearRecentDraw).
       const drawn = detectDraw(cur.snapshot, s);
       return {
         snapshot: s,
         snapshotSeq: s.seq,
-        ...(drawn ? { recentDrawId: drawn, drawToken: cur.drawToken + 1 } : {}),
+        ...(drawn ? { recentDrawId: drawn } : {}),
       };
     });
   },
@@ -60,7 +59,7 @@ export const useGame = create<GameStore>((set) => ({
     set({ recentDrawId: null });
   },
   reset() {
-    set({ snapshot: null, log: [], lastSeq: 0, snapshotSeq: -1, recentDrawId: null, drawToken: 0 });
+    set({ snapshot: null, log: [], lastSeq: 0, snapshotSeq: -1, recentDrawId: null });
   },
 }));
 

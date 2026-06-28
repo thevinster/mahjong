@@ -74,10 +74,15 @@ export function Hand({
     setOrder(arranged);
   }
 
+  const drawnCount = order.filter((a) => a.drawn).length;
+  const handCount = order.length - drawnCount;
+
   return (
     <div style={{ padding: '0.5rem', borderTop: '2px solid #333' }}>
       <div style={{ fontSize: 12, color: '#666' }}>
-        Your hand ({order.length}) — drag to rearrange, tap to discard
+        {drawnCount > 0
+          ? `Your hand (${handCount}) + ${drawnCount} just drawn — tap to discard, drag to rearrange, Sort to merge in`
+          : `Your hand (${handCount}) — drag to rearrange, tap to discard`}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', minHeight: size, paddingTop: 22 }}>
         {order.map((a, i) => {
@@ -95,6 +100,10 @@ export function Hand({
                 position: 'relative',
                 touchAction: 'none', userSelect: 'none', cursor: 'grab',
                 margin: '0.15rem',
+                // Hold the drawn tile visibly apart from the 16-tile hand.
+                marginLeft: a.drawn ? 28 : undefined,
+                borderLeft: a.drawn ? '2px dashed #f5c518' : undefined,
+                paddingLeft: a.drawn ? 10 : undefined,
                 transform: a.drawn ? 'translateY(-14px)' : undefined,
                 filter: a.drawn ? 'drop-shadow(0 0 9px #f5c518)' : undefined,
                 opacity: legal || a.drawn ? 1 : 0.6,

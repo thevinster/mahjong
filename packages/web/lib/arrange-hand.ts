@@ -9,8 +9,8 @@ export type ArrangedTile = { tile: Tile; key: string; drawn: boolean };
  *   in it (e.g. a freshly drawn tile) are appended in sorted order; ids no
  *   longer in hand are dropped. When null, the hand is auto-sorted (sortTiles).
  * - `drawnId`: when set and present, the most-recently-drawn copy is pulled to
- *   the end and flagged `drawn` (the UI highlights it briefly, then it blends in
- *   once `drawnId` is cleared).
+ *   the end and flagged `drawn` (the UI holds it apart from the rest of the hand
+ *   until `drawnId` is cleared, which happens when the player clicks Sort).
  *
  * Keys are stable per arrangement (id + occurrence) so React can track tiles
  * across re-renders even with duplicates.

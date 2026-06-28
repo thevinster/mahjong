@@ -24,7 +24,6 @@ export default function RoomPage() {
   const snapshot = useGame((s) => s.snapshot);
   const setSnapshot = useGame((s) => s.setSnapshot);
   const recentDrawId = useGame((s) => s.recentDrawId);
-  const drawToken = useGame((s) => s.drawToken);
   const clearRecentDraw = useGame((s) => s.clearRecentDraw);
 
   const viewerSeat = snapshot?.viewerSeat ?? null;
@@ -35,7 +34,6 @@ export default function RoomPage() {
   const [starting, setStarting] = useState(false);
   const [joining, setJoining] = useState(false);
   const [manualOrder, setManualOrder] = useState<string[] | null>(null);
-  const [highlightId, setHighlightId] = useState<string | null>(null);
 
   usePusherRoom(code, viewerSeat);
 
@@ -48,14 +46,6 @@ export default function RoomPage() {
   useEffect(() => {
     setLegal(state ? viewerLegalIntents(state) : []);
   }, [state]);
-
-  // Highlight the tile we just drew for a couple seconds, then let it blend in.
-  useEffect(() => {
-    if (!recentDrawId) return;
-    setHighlightId(recentDrawId);
-    const t = setTimeout(() => { setHighlightId(null); clearRecentDraw(); }, 2500);
-    return () => clearTimeout(t);
-  }, [drawToken, recentDrawId, clearRecentDraw]);
 
   // Best-effort "I'm leaving" beacon so the server starts our grace timer.
   useEffect(() => {
@@ -137,8 +127,8 @@ export default function RoomPage() {
   const myHand = state.hands[viewerSeat];
   const concealed = myHand.own ? myHand.concealed : [];
   // Auto-sorted by default; honours the player's manual arrangement when set, and
-  // briefly floats the just-drawn tile at the end before it blends in.
-  const arranged = arrangeHand(concealed, manualOrder, highlightId);
+  // holds the just-drawn tile apart at the end until the player clicks Sort.
+  const arranged = arrangeHand(concealed, manualOrder, recentDrawId);
   const legalDiscards = new Set(
     legal.filter((i) => i.t === 'discard').map((i) => tileId((i as Extract<Intent, { t: 'discard' }>).tile)),
   );
@@ -171,12 +161,13 @@ export default function RoomPage() {
       <Discards discards={state.discards} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 0.5rem', marginTop: 4 }}>
         <button
-          onClick={() => setManualOrder(null)}
+          onClick={() => { setManualOrder(null); clearRecentDraw(); }}
           style={{ padding: '0.3rem 0.8rem', fontSize: 13, borderRadius: 6, border: '1px solid #ccc', background: '#f4f4f4', cursor: 'pointer' }}
         >
           Sort
         </button>
-        {manualOrder && <span style={{ fontSize: 12, color: '#888' }}>custom order</span>}
+        {recentDrawId && <span style={{ fontSize: 12, color: '#888' }}>drawn tile held apart — Sort to merge in</span>}
+        {manualOrder && !recentDrawId && <span style={{ fontSize: 12, color: '#888' }}>custom order</span>}
       </div>
       <Hand
         arranged={arranged}
