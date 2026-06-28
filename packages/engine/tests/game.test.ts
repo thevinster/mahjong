@@ -4,13 +4,16 @@ import { seededRng } from '../src/rng.js';
 import { tileId, parseTileId, type Tile } from '../src/tiles.js';
 
 describe('initialState', () => {
-  it('deals 16 tiles to each non-dealer seat (after flower replacement)', () => {
+  it('deals a full, flower-free concealed hand (16, dealer 17) after flower replacement', () => {
     const s = initialState(seededRng(1));
     for (const seat of SEATS) {
-      const total = s.hands[seat].concealed.length + s.hands[seat].flowers.length;
-      // dealer has 17 (extra draw), others have 16
+      // The concealed hand is the PLAYABLE hand: exactly 16 (17 for the dealer's
+      // extra draw), with dealt flowers moved to the flowers pile AND replaced —
+      // otherwise the hand could never make 5 melds + a pair. (Flowers are bonus
+      // tiles held in addition, so concealed + flowers can exceed 16.)
       const expected = seat === 0 ? 17 : 16;
-      expect(total).toBe(expected);
+      expect(s.hands[seat].concealed.length).toBe(expected);
+      expect(s.hands[seat].concealed.every((t) => t.kind !== 'flower')).toBe(true);
     }
   });
 

@@ -58,23 +58,24 @@ export function initialState(rng: Rng): GameState {
   const firstDraw = wall.shift()!;
   hands[0] = addTile(hands[0], firstDraw);
 
-  // Replace all flowers from dead wall tail
+  // Flowers are bonus tiles: any dealt to a hand were filed under `flowers` by
+  // addTile, leaving the concealed (playable) hand short. Top each concealed
+  // hand back up to its target — 16, or 17 for the dealer's extra draw — from
+  // the dead wall, filing any flower drawn as a replacement and drawing again.
+  // Without this a hand short of 16 can never form 5 melds + a pair, so it can
+  // never win.
   const dwIter = [...deadWall];
   for (const seat of SEATS) {
-    while (hands[seat].concealed.some((t) => t.kind === 'flower')) {
-      const flowerIdx = hands[seat].concealed.findIndex((t) => t.kind === 'flower');
-      const flower = hands[seat].concealed[flowerIdx]! as FlowerTile;
-      hands[seat] = {
-        ...hands[seat],
-        concealed: [
-          ...hands[seat].concealed.slice(0, flowerIdx),
-          ...hands[seat].concealed.slice(flowerIdx + 1),
-        ],
-        flowers: [...hands[seat].flowers, flower],
-      };
-      const repl = dwIter.pop();
+    const target = seat === 0 ? 17 : 16;
+    while (hands[seat].concealed.length < target) {
+      let repl = dwIter.pop();
       if (!repl) throw new Error('dead wall exhausted during initial flower replacement');
-      hands[seat] = addTile(hands[seat], repl);
+      while (repl.kind === 'flower') {
+        hands[seat] = { ...hands[seat], flowers: [...hands[seat].flowers, repl] };
+        repl = dwIter.pop();
+        if (!repl) throw new Error('dead wall exhausted during initial flower replacement');
+      }
+      hands[seat] = { ...hands[seat], concealed: [...hands[seat].concealed, repl] };
     }
   }
 
