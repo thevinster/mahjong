@@ -1,6 +1,7 @@
 'use client';
 import type { Seat, TaiItem } from '@mahjong/engine';
 import { useGame } from '@/hooks/useGame';
+import { theme } from '@/lib/theme';
 
 export function EndPanel({
   winner, score, viewerSeat,
@@ -15,34 +16,47 @@ export function EndPanel({
   const total = breakdown.reduce((n, b) => n + b.tai, 0);
 
   return (
-    <div style={{ marginTop: 16, padding: 16, background: '#eaf7ea', border: '1px solid #bcdcbc', borderRadius: 8 }}>
-      <h3 style={{ margin: '0 0 10px' }}>
-        {winner === null ? 'Draw — wall exhausted' : `Seat ${winner}${winner === viewerSeat ? ' (You)' : ''} wins!`}
-      </h3>
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 50,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(0,0,0,0.55)', padding: 16,
+    }}>
+      <div style={{
+        width: 'min(420px, 92vw)', padding: 22, borderRadius: 18, color: theme.ink,
+        background: 'linear-gradient(180deg, #16271d, #0e1c14)',
+        border: `1px solid ${theme.panelBorder}`,
+        boxShadow: '0 24px 70px rgba(0,0,0,0.6)',
+      }}>
+        <h3 style={{ margin: '0 0 12px', fontSize: 20 }}>
+          {winner === null
+            ? '🀄 Draw — wall exhausted'
+            : `🏆 ${winner === viewerSeat ? 'You win' : `Seat ${winner} wins`}!`}
+        </h3>
 
-      {winner !== null && breakdown.length > 0 && (
-        <table style={{ borderCollapse: 'collapse', fontSize: 14, marginBottom: 12 }}>
-          <tbody>
-            {breakdown.map((b, i) => (
-              <tr key={i}>
-                <td style={{ padding: '1px 16px 1px 0', color: '#333' }}>{taiLabel(b.name)}</td>
-                <td style={{ padding: '1px 0', textAlign: 'right', fontWeight: 600 }}>+{b.tai}</td>
+        {winner !== null && breakdown.length > 0 && (
+          <table style={{ borderCollapse: 'collapse', fontSize: 14, marginBottom: 14, width: '100%' }}>
+            <tbody>
+              {breakdown.map((b, i) => (
+                <tr key={i}>
+                  <td style={{ padding: '2px 16px 2px 0', color: theme.inkDim }}>{taiLabel(b.name)}</td>
+                  <td style={{ padding: '2px 0', textAlign: 'right', fontWeight: 600 }}>+{b.tai}</td>
+                </tr>
+              ))}
+              <tr style={{ borderTop: `1px solid ${theme.panelBorder}` }}>
+                <td style={{ padding: '6px 16px 0 0', fontWeight: 800 }}>Total</td>
+                <td style={{ padding: '6px 0 0', textAlign: 'right', fontWeight: 800, color: theme.gold }}>{total} tai</td>
               </tr>
-            ))}
-            <tr style={{ borderTop: '1px solid #bcdcbc' }}>
-              <td style={{ padding: '4px 16px 0 0', fontWeight: 700 }}>Total</td>
-              <td style={{ padding: '4px 0 0', textAlign: 'right', fontWeight: 700 }}>{total} tai</td>
-            </tr>
-          </tbody>
-        </table>
-      )}
+            </tbody>
+          </table>
+        )}
 
-      <div style={{ display: 'flex', gap: 16, fontSize: 13, flexWrap: 'wrap' }}>
-        {([0, 1, 2, 3] as Seat[]).map((s) => (
-          <span key={s} style={{ color: score[s] > 0 ? '#1e8449' : score[s] < 0 ? '#c0392b' : '#777' }}>
-            Seat {s}{s === viewerSeat ? ' (You)' : ''}: {score[s] > 0 ? '+' : ''}{score[s]}
-          </span>
-        ))}
+        <div style={{ display: 'flex', gap: 14, fontSize: 13, flexWrap: 'wrap' }}>
+          {([0, 1, 2, 3] as Seat[]).map((s) => (
+            <span key={s} style={{ color: score[s] > 0 ? '#7ee2a0' : score[s] < 0 ? '#f0918a' : theme.inkDim }}>
+              {s === viewerSeat ? 'You' : `Seat ${s}`}: {score[s] > 0 ? '+' : ''}{score[s]}
+            </span>
+          ))}
+        </div>
       </div>
     </div>
   );

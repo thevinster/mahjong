@@ -12,6 +12,7 @@ import { useGame } from '@/hooks/useGame';
 import { usePusherRoom } from '@/hooks/usePusherRoom';
 import { viewerLegalIntents } from '@/lib/client-legal';
 import { arrangeHand } from '@/lib/arrange-hand';
+import { theme } from '@/lib/theme';
 import { tileId } from '@mahjong/engine';
 import type { Intent, Seat } from '@mahjong/engine';
 
@@ -96,7 +97,7 @@ export default function RoomPage() {
   }
 
   if (!snapshot) {
-    return <main style={{ padding: '2rem' }}>Loading room {code}…</main>;
+    return <CenteredFelt>Loading room {code}…</CenteredFelt>;
   }
 
   if (phase === 'lobby') {
@@ -117,10 +118,10 @@ export default function RoomPage() {
   // A hand is running but this visitor isn't seated (no redacted state for them).
   if (!state || viewerSeat === null) {
     return (
-      <main style={{ padding: '2rem', maxWidth: 600, margin: '0 auto' }}>
-        <h1>Room {code}</h1>
-        <p>A hand is already in progress and there's no free seat. Hang tight for the next one.</p>
-      </main>
+      <CenteredFelt>
+        <h2 style={{ margin: '0 0 8px' }}>Room {code}</h2>
+        <p style={{ color: theme.inkDim }}>A hand is already in progress and there&apos;s no free seat. Hang tight for the next one.</p>
+      </CenteredFelt>
     );
   }
 
@@ -133,54 +134,114 @@ export default function RoomPage() {
     legal.filter((i) => i.t === 'discard').map((i) => tileId((i as Extract<Intent, { t: 'discard' }>).tile)),
   );
 
-  return (
-    <main style={{ padding: '1rem', maxWidth: 1000, margin: '0 auto' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between' }}>
-        <h2>Room {code}</h2>
-        <span>Wall: {state.wallRemaining}</span>
-      </header>
-      <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-        {[0, 1, 2, 3].map((s) => {
-          const seat = s as Seat;
-          const h = state.hands[seat];
-          const info = snapshot.seats[seat];
-          const active = state.phase.t === 'awaitDiscard' && state.phase.seat === seat;
-          return (
-            <SeatView
-              key={seat}
-              seat={seat}
-              name={seat === viewerSeat ? 'You' : (info?.name ?? `Seat ${seat}`)}
-              concealedCount={h.own ? h.concealed.length : h.concealedCount}
-              exposed={h.exposed}
-              flowers={h.flowers}
-              active={active}
-            />
-          );
-        })}
-      </section>
-      <Discards discards={state.discards} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 0.5rem', marginTop: 4 }}>
-        <button
-          onClick={() => { setManualOrder(null); clearRecentDraw(); }}
-          style={{ padding: '0.3rem 0.8rem', fontSize: 13, borderRadius: 6, border: '1px solid #ccc', background: '#f4f4f4', cursor: 'pointer' }}
-        >
-          Sort
-        </button>
-        {recentDrawId && <span style={{ fontSize: 12, color: '#888' }}>drawn tile held apart — Sort to merge in</span>}
-        {manualOrder && !recentDrawId && <span style={{ fontSize: 12, color: '#888' }}>custom order</span>}
-      </div>
-      <Hand
-        arranged={arranged}
-        legalDiscards={legalDiscards}
-        onDiscard={(t) => send({ t: 'discard', seat: viewerSeat, tile: t })}
-        onReorder={setManualOrder}
-        size={64}
+  // Seats placed around the table relative to the viewer (you at the bottom).
+  const rightSeat = ((viewerSeat + 1) & 3) as Seat;
+  const topSeat = ((viewerSeat + 2) & 3) as Seat;
+  const leftSeat = ((viewerSeat + 3) & 3) as Seat;
+  const nameOf = (s: Seat) => (s === viewerSeat ? 'You' : (snapshot.seats[s]?.name ?? `Seat ${s}`));
+
+  const seatBlock = (seat: Seat, orientation: 'self' | 'top' | 'left' | 'right') => {
+    const h = state.hands[seat];
+    const active = state.phase.t === 'awaitDiscard' && state.phase.seat === seat;
+    return (
+      <SeatView
+        seat={seat}
+        orientation={orientation}
+        name={nameOf(seat)}
+        concealedCount={h.own ? h.concealed.length : h.concealedCount}
+        exposed={h.exposed}
+        flowers={h.flowers}
+        active={active}
       />
-      <ActionBar legalIntents={legal.filter((i) => i.t !== 'discard')} onIntent={send} />
-      <ActionLog />
+    );
+  };
+
+  const activeSeat: Seat | null = state.phase.t === 'awaitDiscard' ? state.phase.seat : null;
+  const yourTurn = activeSeat === viewerSeat;
+  const turnLabel =
+    state.phase.t === 'ended' ? 'Hand over'
+      : state.phase.t === 'awaitClaims' ? 'Claims open'
+        : `▶ ${yourTurn ? 'Your' : `${nameOf(activeSeat ?? viewerSeat)}'s`} turn`;
+
+  return (
+    <main style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: theme.feltBg }}>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '8px 16px', background: theme.feltEdge, color: theme.ink,
+        borderBottom: `1px solid ${theme.panelBorder}`,
+      }}>
+        <strong style={{ letterSpacing: '0.04em' }}>🀄 Room {code}</strong>
+        <div style={{ display: 'flex', gap: 18, alignItems: 'center', fontSize: 13 }}>
+          <span style={{ color: theme.inkDim }}>Round {WINDS[state.prevailingWind]}</span>
+          <span style={{ color: theme.inkDim }}>Wall {state.wallRemaining}</span>
+          <span style={{ fontWeight: 700, color: yourTurn ? theme.gold : theme.ink }}>{turnLabel}</span>
+        </div>
+      </div>
+
+      <div style={{
+        flex: 1, width: '100%', maxWidth: 1120, margin: '0 auto', boxSizing: 'border-box',
+        padding: '12px 16px', display: 'grid', gap: 10,
+        gridTemplateColumns: 'minmax(110px, 1fr) minmax(0, 2.4fr) minmax(110px, 1fr)',
+        gridTemplateRows: 'auto minmax(170px, 1fr) auto',
+      }}>
+        <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'center' }}>
+          {seatBlock(topSeat, 'top')}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch' }}>
+          {seatBlock(leftSeat, 'left')}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minHeight: 0, alignSelf: 'stretch' }}>
+          <Discards discards={state.discards} />
+          <ActionLog />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch' }}>
+          {seatBlock(rightSeat, 'right')}
+        </div>
+
+        <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {seatBlock(viewerSeat, 'self')}
+          <ActionBar legalIntents={legal.filter((i) => i.t !== 'discard')} onIntent={send} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 2px' }}>
+            <button
+              onClick={() => { setManualOrder(null); clearRecentDraw(); }}
+              style={{ padding: '0.3rem 0.9rem', fontSize: 13, borderRadius: 999, border: `1px solid ${theme.panelBorder}`, background: 'rgba(255,255,255,0.92)', color: '#23304a', cursor: 'pointer', fontWeight: 600 }}
+            >
+              Sort
+            </button>
+            {recentDrawId && <span style={{ fontSize: 12, color: theme.inkDim }}>drawn tile held apart — Sort to merge in</span>}
+            {manualOrder && !recentDrawId && <span style={{ fontSize: 12, color: theme.inkDim }}>custom order</span>}
+          </div>
+          <Hand
+            arranged={arranged}
+            legalDiscards={legalDiscards}
+            onDiscard={(t) => send({ t: 'discard', seat: viewerSeat, tile: t })}
+            onReorder={setManualOrder}
+            size={64}
+          />
+        </div>
+      </div>
+
       {state.phase.t === 'ended' && (
         <EndPanel winner={state.phase.winner} score={state.phase.score} viewerSeat={viewerSeat} />
       )}
+    </main>
+  );
+}
+
+const WINDS: Record<'E' | 'S' | 'W' | 'N', string> = { E: '東', S: '南', W: '西', N: '北' };
+
+function CenteredFelt({ children }: { children: React.ReactNode }) {
+  return (
+    <main style={{
+      minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: theme.feltBg, padding: '2rem',
+    }}>
+      <div style={{
+        maxWidth: 600, padding: '1.5rem 2rem', borderRadius: 16,
+        background: theme.panel, border: `1px solid ${theme.panelBorder}`, color: theme.ink,
+      }}>
+        {children}
+      </div>
     </main>
   );
 }

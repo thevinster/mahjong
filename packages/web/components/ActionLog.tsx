@@ -2,17 +2,24 @@
 import { meldTiles, type Event } from '@mahjong/engine';
 import { useGame } from '@/hooks/useGame';
 import { TileFace } from './TileFace';
+import { theme } from '@/lib/theme';
 
 export function ActionLog() {
   const log = useGame((s) => s.log);
   return (
     <div style={{
-      padding: '0.5rem', background: '#fffef0', border: '1px solid #ddc',
-      borderRadius: 6, height: 220, overflowY: 'auto', fontSize: 13,
+      padding: '0.5rem 0.6rem', background: theme.panel,
+      border: `1px solid ${theme.panelBorder}`, borderRadius: 12,
+      height: 150, overflowY: 'auto', fontSize: 12.5, color: theme.ink,
     }}>
-      <div style={{ fontWeight: 'bold', marginBottom: 4 }}>Log</div>
+      <div style={{
+        fontWeight: 700, marginBottom: 4, color: theme.inkDim,
+        fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase',
+      }}>
+        Log
+      </div>
       {log.slice(-60).map((e) => (
-        <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0', borderBottom: '1px solid #f1eccf' }}>
+        <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 0', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
           <EventRow ev={e.ev} />
         </div>
       ))}

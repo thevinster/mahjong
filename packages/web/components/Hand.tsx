@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { tileId, type Tile } from '@mahjong/engine';
 import { TileFace } from './TileFace';
 import type { ArrangedTile } from '@/lib/arrange-hand';
+import { theme } from '@/lib/theme';
 
 const DRAG_THRESHOLD = 8; // px of movement before a press becomes a drag (not a discard)
 
@@ -78,8 +79,12 @@ export function Hand({
   const handCount = order.length - drawnCount;
 
   return (
-    <div style={{ padding: '0.5rem', borderTop: '2px solid #333' }}>
-      <div style={{ fontSize: 12, color: '#666' }}>
+    <div style={{
+      padding: '0.55rem 0.85rem 0.7rem', borderRadius: 14,
+      background: theme.wood, border: `1px solid ${theme.woodBorder}`,
+      boxShadow: '0 8px 22px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.14)',
+    }}>
+      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.82)' }}>
         {drawnCount > 0
           ? `Your hand (${handCount}) + ${drawnCount} just drawn — tap to discard, drag to rearrange, Sort to merge in`
           : `Your hand (${handCount}) — drag to rearrange, tap to discard`}
