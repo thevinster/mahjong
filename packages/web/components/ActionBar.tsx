@@ -1,5 +1,7 @@
 'use client';
-import type { Intent, Seat } from '@mahjong/engine';
+import type { Intent, Tile } from '@mahjong/engine';
+import { TileFace } from './TileFace';
+import { claimTiles } from '@/lib/action-label';
 
 export function ActionBar({
   legalIntents, onIntent,
@@ -18,22 +20,49 @@ export function ActionBar({
   return (
     <div style={{ padding: '0.5rem', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
       {winIntents.map((i, k) => (
-        <button key={`w${k}`} onClick={() => onIntent(i)} style={btn('#5e5')}>Win!</button>
+        <ActionButton key={`w${k}`} bg="#5e5" onClick={() => onIntent(i)}
+          label={i.t === 'declareSelfWin' ? 'Win! (self-draw)' : 'Win!'} tiles={claimTiles(i)} />
       ))}
       {kongIntents.map((i, k) => (
-        <button key={`k${k}`} onClick={() => onIntent(i)} style={btn('#aaf')}>Kong</button>
+        <ActionButton key={`k${k}`} bg="#aaf" onClick={() => onIntent(i)}
+          label={i.t === 'declareConcealedKong' ? 'Kong (concealed)' : 'Kong'} tiles={claimTiles(i)} />
       ))}
       {pongIntents.map((i, k) => (
-        <button key={`p${k}`} onClick={() => onIntent(i)} style={btn('#fa5')}>Pong</button>
+        <ActionButton key={`p${k}`} bg="#fa5" onClick={() => onIntent(i)}
+          label="Pong" tiles={claimTiles(i)} />
       ))}
       {chowIntents.map((i, k) => (
-        <button key={`c${k}`} onClick={() => onIntent(i)} style={btn('#ff8')}>Chow {k + 1}</button>
+        <ActionButton key={`c${k}`} bg="#ff8" onClick={() => onIntent(i)}
+          label={chowIntents.length > 1 ? `Chow ${k + 1}` : 'Chow'} tiles={claimTiles(i)} />
       ))}
-      {passIntent && <button onClick={() => onIntent(passIntent)} style={btn('#ccc')}>Pass</button>}
+      {passIntent && (
+        <ActionButton bg="#ccc" onClick={() => onIntent(passIntent)} label="Pass" tiles={[]} />
+      )}
     </div>
   );
 }
 
+/** A claim/action button: a text label followed by the tile faces it references. */
+function ActionButton({
+  label, tiles, bg, onClick,
+}: {
+  label: string;
+  tiles: Tile[];
+  bg: string;
+  onClick: () => void;
+}) {
+  return (
+    <button onClick={onClick} style={btn(bg)}>
+      <span style={{ marginRight: tiles.length ? 6 : 0 }}>{label}</span>
+      {tiles.map((t, i) => <TileFace key={i} tile={t} size={30} />)}
+    </button>
+  );
+}
+
 function btn(bg: string): React.CSSProperties {
-  return { padding: '0.5rem 1rem', background: bg, border: '1px solid #888', borderRadius: 4, cursor: 'pointer', fontWeight: 'bold' };
+  return {
+    display: 'inline-flex', alignItems: 'center', gap: 2,
+    padding: '0.4rem 0.7rem', background: bg,
+    border: '1px solid #888', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold',
+  };
 }
