@@ -29,5 +29,6 @@ export type RoomSnapshot = {
   seq: number;
   seats: SeatPublic[];
   state: RedactedGameState | null;
+  turnDeadline?: number | null; // epoch ms the seat on turn must act by (for the countdown)
 };
 export type SnapshotResponse     = RoomSnapshot;

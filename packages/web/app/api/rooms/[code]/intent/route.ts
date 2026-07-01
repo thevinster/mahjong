@@ -3,7 +3,7 @@ import { getOrIssuePlayerId } from '@/lib/identity';
 import { getRoom } from '@/lib/rooms';
 import { casRoom } from '@/lib/kv';
 import { applyIntent } from '@/lib/dispatcher';
-import { runBotTurnsInline } from '@/lib/bot-scheduler';
+import { runBotTurnsInline, armTurnDeadline } from '@/lib/bot-scheduler';
 import { reconcileGrace } from '@/lib/grace';
 import { broadcastEvent } from '@/lib/pusher-server';
 import type { Seat } from '@mahjong/engine';
@@ -34,6 +34,9 @@ export async function POST(req: NextRequest, ctx: { params: { code: string } }):
 
     const botEvents = runBotTurnsInline(room);
     const allEvents = [...result.events, ...botEvents];
+
+    // Reset the turn clock for whoever the game now waits on (cleared at end).
+    armTurnDeadline(room);
 
     // Update seq before CAS write so it gets persisted
     const baseSeq = room.seq;

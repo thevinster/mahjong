@@ -4,11 +4,14 @@ import { useGame } from '@/hooks/useGame';
 import { theme } from '@/lib/theme';
 
 export function EndPanel({
-  winner, score, viewerSeat,
+  winner, score, viewerSeat, isHost, onNewGame, starting,
 }: {
   winner: Seat | null;
   score: Readonly<Record<Seat, number>>;
   viewerSeat: Seat;
+  isHost: boolean;
+  onNewGame: () => void;
+  starting: boolean;
 }) {
   const log = useGame((s) => s.log);
   const won = [...log].reverse().find((e) => e.ev.t === 'won');
@@ -56,6 +59,24 @@ export function EndPanel({
               {s === viewerSeat ? 'You' : `Seat ${s}`}: {score[s] > 0 ? '+' : ''}{score[s]}
             </span>
           ))}
+        </div>
+
+        <div style={{ marginTop: 18 }}>
+          {isHost ? (
+            <button
+              onClick={onNewGame}
+              disabled={starting}
+              style={{
+                padding: '0.6rem 1.4rem', borderRadius: 999, border: 'none',
+                background: theme.gold, color: '#2a2113', fontSize: 15, fontWeight: 700,
+                cursor: starting ? 'default' : 'pointer', width: '100%',
+              }}
+            >
+              {starting ? 'Dealing…' : 'Start new hand'}
+            </button>
+          ) : (
+            <p style={{ margin: 0, color: theme.inkDim, fontSize: 13 }}>Waiting for the host to start a new hand…</p>
+          )}
         </div>
       </div>
     </div>

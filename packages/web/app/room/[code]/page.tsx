@@ -12,9 +12,10 @@ import { useGame } from '@/hooks/useGame';
 import { usePusherRoom } from '@/hooks/usePusherRoom';
 import { viewerLegalIntents } from '@/lib/client-legal';
 import { arrangeHand } from '@/lib/arrange-hand';
+import { ownDrawFromEvents } from '@/lib/detect-draw';
 import { theme } from '@/lib/theme';
 import { tileId } from '@mahjong/engine';
-import type { Intent, Seat } from '@mahjong/engine';
+import type { Intent, Seat, Event } from '@mahjong/engine';
 
 const TICK_MS = 8000;
 
@@ -25,16 +26,19 @@ export default function RoomPage() {
   const snapshot = useGame((s) => s.snapshot);
   const setSnapshot = useGame((s) => s.setSnapshot);
   const recentDrawId = useGame((s) => s.recentDrawId);
+  const noteDrawn = useGame((s) => s.noteDrawn);
   const clearRecentDraw = useGame((s) => s.clearRecentDraw);
 
   const viewerSeat = snapshot?.viewerSeat ?? null;
   const state = snapshot?.state ?? null;
   const phase = snapshot?.phase ?? null;
+  const turnDeadline = snapshot?.turnDeadline ?? null;
 
   const [legal, setLegal] = useState<Intent[]>([]);
   const [starting, setStarting] = useState(false);
   const [joining, setJoining] = useState(false);
   const [manualOrder, setManualOrder] = useState<string[] | null>(null);
+  const [now, setNow] = useState(0);
 
   usePusherRoom(code, viewerSeat);
 
@@ -56,21 +60,34 @@ export default function RoomPage() {
     return () => window.removeEventListener('pagehide', onHide);
   }, [code]);
 
-  // Serverless has no timers: while a human is away, nudge the room so their
-  // grace can expire and a bot can take over. Cheap 204 no-op otherwise.
-  const someoneAway = !!snapshot?.seats.some((s) => s.kind === 'human' && !s.connected);
+  // Serverless has no timers: while a hand is in progress, clients nudge the room
+  // so a no-show's turn can time out (→ bot), a disconnect's grace can expire, and
+  // any pending bot turns advance. Cheap 204 no-op when there's nothing to do.
   useEffect(() => {
-    if (phase !== 'playing' || !someoneAway) return;
+    if (phase !== 'playing') return;
     const id = setInterval(() => { void fetch(`/api/rooms/${code}/tick`, { method: 'POST' }); }, TICK_MS);
     return () => clearInterval(id);
-  }, [phase, someoneAway, code]);
+  }, [phase, code]);
+
+  // Tick a local clock once a second so the per-turn countdown renders live.
+  useEffect(() => {
+    if (phase !== 'playing' || !turnDeadline) { setNow(0); return; }
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [phase, turnDeadline]);
 
   async function send(intent: Intent) {
-    await fetch(`/api/rooms/${code}/intent`, {
+    const r = await fetch(`/api/rooms/${code}/intent`, {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ intent }),
     });
+    const body = (await r.json().catch(() => null)) as { events?: Event[] } | null;
     await refetch();
+    // Snapshot diffing can't see our own redraw (discard + redraw happen in one
+    // request → 17→17), so read the freshly-drawn tile straight from the response.
+    const drawn = ownDrawFromEvents(body?.events ?? [], viewerSeat);
+    if (drawn) noteDrawn(drawn);
   }
 
   async function startRoom() {
@@ -162,6 +179,7 @@ export default function RoomPage() {
     state.phase.t === 'ended' ? 'Hand over'
       : state.phase.t === 'awaitClaims' ? 'Claims open'
         : `▶ ${yourTurn ? 'Your' : `${nameOf(activeSeat ?? viewerSeat)}'s`} turn`;
+  const remainingMs = state.phase.t !== 'ended' && turnDeadline && now ? Math.max(0, turnDeadline - now) : null;
 
   return (
     <main style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column', background: theme.feltBg }}>
@@ -174,6 +192,9 @@ export default function RoomPage() {
         <div style={{ display: 'flex', gap: 18, alignItems: 'center', fontSize: 13 }}>
           <span style={{ color: theme.inkDim }}>Round {WINDS[state.prevailingWind]}</span>
           <span style={{ color: theme.inkDim }}>Wall {state.wallRemaining}</span>
+          {remainingMs !== null && (
+            <span style={{ color: remainingMs < 20000 ? '#f0918a' : theme.inkDim }}>⏱ {fmtClock(remainingMs)}</span>
+          )}
           <span style={{ fontWeight: 700, color: yourTurn ? theme.gold : theme.ink }}>{turnLabel}</span>
         </div>
       </div>
@@ -222,13 +243,25 @@ export default function RoomPage() {
       </div>
 
       {state.phase.t === 'ended' && (
-        <EndPanel winner={state.phase.winner} score={state.phase.score} viewerSeat={viewerSeat} />
+        <EndPanel
+          winner={state.phase.winner}
+          score={state.phase.score}
+          viewerSeat={viewerSeat}
+          isHost={snapshot.isHost}
+          onNewGame={startRoom}
+          starting={starting}
+        />
       )}
     </main>
   );
 }
 
 const WINDS: Record<'E' | 'S' | 'W' | 'N', string> = { E: '東', S: '南', W: '西', N: '北' };
+
+function fmtClock(ms: number): string {
+  const s = Math.ceil(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
 
 function CenteredFelt({ children }: { children: React.ReactNode }) {
   return (

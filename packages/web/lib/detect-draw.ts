@@ -1,4 +1,4 @@
-import { tileId, type Tile } from '@mahjong/engine';
+import { tileId, type Tile, type Event, type Seat } from '@mahjong/engine';
 import type { RoomSnapshot } from './protocol';
 
 /**
@@ -33,6 +33,27 @@ export function detectDraw(prev: RoomSnapshot | null, next: RoomSnapshot): strin
   const afterCounts = countById(after);
   for (const id of Object.keys(afterCounts)) {
     if (afterCounts[id]! > (beforeCounts[id] ?? 0)) return id;
+  }
+  return null;
+}
+
+/**
+ * The viewer's own freshly-drawn tile id taken from an intent's returned events.
+ *
+ * detectDraw (snapshot diff) is blind to the acting player's own draw: they
+ * discard (17→16) and the engine draws their next tile (16→17) inside the SAME
+ * request, so the client only ever observes 17→17 and sees no growth. The intent
+ * response, however, carries the player's own `drew` event WITH `tileForSeat`
+ * (unredacted, since redaction only happens on the Pusher broadcast), so we read
+ * the highlight straight from it — reliably, with no Pusher dependency.
+ */
+export function ownDrawFromEvents(events: readonly Event[], viewerSeat: Seat | null): string | null {
+  if (viewerSeat === null) return null;
+  for (let i = events.length - 1; i >= 0; i--) {
+    const ev = events[i]!;
+    if (ev.t === 'drew' && ev.seat === viewerSeat && 'tileForSeat' in ev && ev.tileForSeat) {
+      return tileId(ev.tileForSeat);
+    }
   }
   return null;
 }

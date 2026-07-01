@@ -37,5 +37,6 @@ export function buildRoomSnapshot(room: Room, playerId: string): RoomSnapshot {
     seq: room.seq,
     seats,
     state,
+    turnDeadline: room.turnDeadline ?? null,
   };
 }

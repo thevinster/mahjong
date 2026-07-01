@@ -70,3 +70,32 @@ export function runBotTurnsInline(room: Room, MAX_TURNS = 400): import('@mahjong
 export function botPolicyByName(name: string): BotPolicy {
   return POLICIES[name] ?? heuristicPolicy;
 }
+
+/** How long a human has to act on their turn before being treated as dropped. */
+export const TURN_LIMIT_MS = 120_000; // 2 minutes
+
+/**
+ * Arm the turn clock: while a hand is in progress the room is always waiting on
+ * a human (runBotTurnsInline plays all bots and no-choice passes), so set a
+ * fresh deadline. Cleared once the hand has ended. Call after each settle.
+ */
+export function armTurnDeadline(room: Room): void {
+  room.turnDeadline = room.state && room.state.phase.t !== 'ended'
+    ? Date.now() + TURN_LIMIT_MS
+    : null;
+}
+
+/**
+ * If the seat the game is waiting on is a human who blew past the turn deadline,
+ * treat them as dropped and convert them to a bot (the bot then plays via
+ * runBotTurnsInline). Mutates `room`; returns true if a seat was flipped.
+ */
+export function reconcileTurnTimeout(room: Room): boolean {
+  if (!room.turnDeadline || Date.now() <= room.turnDeadline) return false;
+  const seat = nextActor(room);
+  if (seat === null) return false;
+  if (room.seats[seat].kind !== 'human') return false;
+  room.seats[seat] = { kind: 'bot', policyName: heuristicPolicy.name };
+  room.turnDeadline = null; // re-armed after the now-bot turn is played out
+  return true;
+}

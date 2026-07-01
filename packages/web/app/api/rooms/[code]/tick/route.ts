@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { getRoom } from '@/lib/rooms';
 import { casRoom } from '@/lib/kv';
 import { reconcileGrace } from '@/lib/grace';
-import { runBotTurnsInline } from '@/lib/bot-scheduler';
+import { runBotTurnsInline, reconcileTurnTimeout, armTurnDeadline } from '@/lib/bot-scheduler';
 import { broadcastEvent, broadcastLobby } from '@/lib/pusher-server';
 
 export const runtime = 'nodejs';
@@ -20,11 +20,16 @@ export async function POST(_req: NextRequest, ctx: { params: { code: string } })
     const room = await getRoom(ctx.params.code);
     if (!room) return NextResponse.json({ error: 'room not found' }, { status: 404 });
 
+    // A no-show past the per-turn deadline counts as a drop → bot, same as an
+    // explicit disconnect whose grace expired.
+    const timedOut = reconcileTurnTimeout(room);
     const flipped = reconcileGrace(room);
     const events = runBotTurnsInline(room);
-    if (!flipped && events.length === 0) {
+    if (!timedOut && !flipped && events.length === 0) {
       return new NextResponse(null, { status: 204 }); // nothing to advance
     }
+    // Something advanced — re-arm the clock for whoever is now on turn.
+    armTurnDeadline(room);
 
     const baseSeq = room.seq;
     room.seq = baseSeq + events.length;

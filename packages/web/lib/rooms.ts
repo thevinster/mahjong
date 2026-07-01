@@ -22,6 +22,7 @@ export type Room = {
   seq: number;
   pendingClaims: Record<string, unknown>; // seat-as-string → Intent (JSON-friendly)
   version: number; // bumped on every write; used by casRoom
+  turnDeadline?: number | null; // epoch ms by which the seat on turn must act, else dropped → bot
 };
 
 const SEATS: readonly Seat[] = [0, 1, 2, 3];
@@ -45,6 +46,7 @@ export async function createRoom(hostPlayerId: PlayerId): Promise<Room> {
       seq: 0,
       pendingClaims: {},
       version: 1,
+      turnDeadline: null,
     };
     const ok = await createRoomIfAbsent(code, room);
     if (ok) return room;
@@ -54,6 +56,14 @@ export async function createRoom(hostPlayerId: PlayerId): Promise<Room> {
 
 export async function getRoom(code: string): Promise<Room | null> {
   return await readRoom(code);
+}
+
+/**
+ * Whether the host may (re)start a hand: from the lobby, or as a fresh hand once
+ * the previous one has ended. Not while a hand is still in progress.
+ */
+export function canStartHand(room: Room): boolean {
+  return room.phase === 'lobby' || room.state?.phase.t === 'ended';
 }
 
 type JoinResult =

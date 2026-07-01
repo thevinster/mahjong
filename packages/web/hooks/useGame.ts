@@ -14,6 +14,7 @@ type GameStore = {
   recentDrawId: string | null; // id of the viewer's just-drawn tile, held apart until Sort
   setSnapshot: (s: RoomSnapshot) => void;
   applyEvent: (ev: Event, seq: number) => void;
+  noteDrawn: (id: string) => void;
   clearRecentDraw: () => void;
   reset: () => void;
 };
@@ -54,6 +55,11 @@ export const useGame = create<GameStore>((set) => ({
       if (seq <= cur.lastSeq) return cur; // duplicate / out-of-order
       return { ...cur, lastSeq: seq, log: [...cur.log, { id: nextLogId++, ev }] };
     });
+  },
+  noteDrawn(id) {
+    // The acting player's own draw, read from the intent response — snapshot
+    // diffing can't see it (they discard and redraw within one request).
+    set({ recentDrawId: id });
   },
   clearRecentDraw() {
     set({ recentDrawId: null });

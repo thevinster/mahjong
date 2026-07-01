@@ -1,10 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { randomBytes } from 'node:crypto';
 import { getOrIssuePlayerId } from '@/lib/identity';
-import { getRoom } from '@/lib/rooms';
+import { getRoom, canStartHand } from '@/lib/rooms';
 import { casRoom } from '@/lib/kv';
 import { initialState, seededRng, heuristicPolicy, type Seat } from '@mahjong/engine';
-import { runBotTurnsInline } from '@/lib/bot-scheduler';
+import { runBotTurnsInline, armTurnDeadline } from '@/lib/bot-scheduler';
 import { broadcastEvent, broadcastLobby } from '@/lib/pusher-server';
 
 export const runtime = 'nodejs';
@@ -16,7 +16,8 @@ export async function POST(_req: NextRequest, ctx: { params: { code: string } })
     const room = await getRoom(ctx.params.code);
     if (!room) return NextResponse.json({ error: 'room not found' }, { status: 404 });
     if (room.host !== playerId) return NextResponse.json({ error: 'host only' }, { status: 403 });
-    if (room.phase !== 'lobby') return NextResponse.json({ error: 'already started' }, { status: 409 });
+    // Startable from the lobby, or as a NEW hand once the previous one has ended.
+    if (!canStartHand(room)) return NextResponse.json({ error: 'hand in progress' }, { status: 409 });
     for (const seat of SEATS) {
       if (room.seats[seat].kind === 'empty') {
         room.seats[seat] = { kind: 'bot', policyName: heuristicPolicy.name };
@@ -25,8 +26,10 @@ export async function POST(_req: NextRequest, ctx: { params: { code: string } })
     const seed = randomBytes(4).readUInt32BE(0);
     room.state = initialState(seededRng(seed));
     room.phase = 'playing';
+    room.pendingClaims = {}; // clear any leftover claims from the previous hand
     // Run any leading bot turns synchronously (host is always seat 0 / human, so this is usually a no-op)
     const events = runBotTurnsInline(room);
+    armTurnDeadline(room);
 
     // Update seq before CAS write so it gets persisted
     const baseSeq = room.seq;
